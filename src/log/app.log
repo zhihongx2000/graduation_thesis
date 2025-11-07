@@ -1,0 +1,30 @@
+2025-11-07 13:10:57 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:10:57 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': Configuration error: Missing 'transport' key in server configuration. Each server must include 'transport' with one of: 'stdio', 'sse', 'websocket', 'streamable_http'. Please refer to the langchain-mcp-adapters documentation for more details.
+2025-11-07 13:11:48 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:11:48 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': 'url' parameter is required for SSE connection
+2025-11-07 13:14:17 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:14:17 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': Configuration error: Missing 'transport' key in server configuration. Each server must include 'transport' with one of: 'stdio', 'sse', 'websocket', 'streamable_http'. Please refer to the langchain-mcp-adapters documentation for more details.
+2025-11-07 13:14:27 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:14:27 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': 'url' parameter is required for SSE connection
+2025-11-07 13:15:01 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:15:01 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': 'url' parameter is required for SSE connection
+2025-11-07 13:19:55 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:19:55 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': Configuration error: Missing 'transport' key in server configuration. Each server must include 'transport' with one of: 'stdio', 'sse', 'websocket', 'streamable_http'. Please refer to the langchain-mcp-adapters documentation for more details.
+2025-11-07 13:20:21 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:20:21 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': 'url' parameter is required for SSE connection
+2025-11-07 13:30:25 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:30:25 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': 'url' parameter is required for SSE connection
+2025-11-07 13:32:28 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:32:28 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': _create_sse_session() got an unexpected keyword argument 'command'
+2025-11-07 13:35:53 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:35:53 | WARNING  | __main__ | Failed to load tools from MCP server 'mineru-mcp': _create_sse_session() got an unexpected keyword argument 'env'
+2025-11-07 13:36:15 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:36:15 | INFO     | __main__ | Loaded 2 tools from MCP server 'mineru-mcp'
+2025-11-07 13:40:01 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:40:01 | INFO     | __main__ | Loaded 2 tools from MCP server 'mineru-mcp'
+2025-11-07 13:50:34 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:50:35 | INFO     | __main__ | Loaded 2 tools from MCP server 'mineru-mcp'
+2025-11-07 13:53:01 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:53:01 | INFO     | __main__ | Loaded 2 tools from MCP server 'mineru-mcp'
+2025-11-07 13:53:36 | INFO     | __main__ | Created MCP client with servers: ['mineru-mcp']
+2025-11-07 13:53:36 | INFO     | __main__ | Loaded 2 tools from MCP server 'mineru-mcp'
