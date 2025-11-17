@@ -50,7 +50,7 @@ class Context:
         },
     )
     
-    enable_mcp: bool = field(
+    enable_mineru: bool = field(
         default=True,
         metadata={
             "description": "Whether to enable the MCP tool for document processing,.",
