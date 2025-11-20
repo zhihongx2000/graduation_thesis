@@ -1,0 +1,26 @@
+[
+    {
+        "type": "image",
+        "img_path": "images/9100cbc5b3cab7bd0a5a6e0d9dbb41aefb20a0b0b8d268f1884fe7ce67776bfc.jpg",
+        "image_caption": [],
+        "image_footnote": [],
+        "bbox": [
+            32,
+            16,
+            800,
+            985
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "discarded",
+        "text": "",
+        "bbox": [
+            454,
+            984,
+            544,
+            993
+        ],
+        "page_idx": 0
+    }
+]

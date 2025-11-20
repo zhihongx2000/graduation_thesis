@@ -37,7 +37,7 @@ def load_chat_model(
         return create_vllm_model(provider_lower, model)
 
     # 处理 兼容openai接口 启动的模型：openai_deepseek,openai_qwen
-    if provider_lower in ["openai_deepseek", "openai_qwen"]:
+    if provider_lower in ["openai_deepseek", "openai_qwen", "openai_silicon"]:
         from .models import create_openai_compatible_model
 
         return create_openai_compatible_model(provider_lower, model)

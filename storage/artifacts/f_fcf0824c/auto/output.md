@@ -1,0 +1,692 @@
+==== 第 1 页 ====
+
+# Multi-scale convolution enhanced transformer for multivariate long-term time series forecasting 
+
+Ao Li a, Ying Li a, Yunyang Xu a, Xuemei Li a,∗, Caiming Zhang a,b 
+
+a School of Software, Shandong University, Jinan 250101, China b Shandong Provincial Laboratory of Future Intelligence and Financial Engineering, Yantai 264005, China 
+
+# A R T I C L E I N F O 
+
+# A B S T R A C T 
+
+Keywords:   
+Multivariate time series   
+Transformer   
+Multi-scale segmentation   
+Long-term time series   
+Forecasting   
+Attention 
+
+In data analysis and forecasting, particularly for multivariate long-term time series, challenges persist. The Transformer model in deep learning methods has shown significant potential in time series forecasting. The Transformer model’s dot-product attention mechanism, however, due to its quadratic computational complexity, impairs training and forecasting efficiency. In addition, the Transformer architecture has limitations in modeling local features and dealing with multivariate cross-dimensional dependency relationship. In this article, a Multi-Scale Convolution Enhanced Transformer model (MSCformer) is proposed for multivariate longterm time series forecasting. As an alternative to modeling the time series in its entirety, a segmentation strategy is designed to convert the input original series into segmented forms with different lengths, then process time series segments using a new constructed multi-Dependency Aggregation module. This multiScale segmentation approach reduces the computational complexity of the attention mechanism part in subsequent models, and for each segment of length corresponds to a specific time scale, it also ensures that each segment retains the semantic information of the data sequence level, thereby comprehensively utilizing the multi-scale information of the data while more accurately capturing the real dependency of the time series. The Multi-Dependence Aggregate module captures both cross-temporal and cross-dimensional dependencies of multivariate long-term time series and compensates for local dependencies within the segments thereby captures local series features comprehensively and addressing the issue of insufficient information utilization. MSCformer synthesizes dependency information extracted from various temporal segments at different scales and reconstructs future series using linear layers. MSCformer exhibits higher forecasting accuracy, outperforming existing methods in multiple domains including energy, transportation, weather, electricity, disease and finance. 
+
+# 1. Introduction 
+
+Studies on time series forecasting research aim to predict the future values of time series based on historical observations and are extensively applied in a variety of fields such as traffic management (Li et al., 2015; Shen et al., 2023), energy management (Pang et al., 2022), financial investment (Song et al., 2023), and disease spread analysis (Matsubara et al., 2014). The research can be divided into two main types: Univariate Time Series Forecasting and Multivariate Time Series Forecasting. In practical applications, a system often involves complex interactions between multiple variables. A multivariate time series forecasting method that comprehensively analyzes the relationships within and between multiple variables can improve our understanding of the behavior of variables in real-world systems, improving resource allocation, increasing efficiency, and supporting better decision-making (Deihim et al., 2023). In comparison with univariate forecasting models, multivariate forecasting models have a wider application prospect. Furthermore, multivariate time series forecasting models have increased requirements for predictable time horizons, especially for long-term planning and early warning applications. Increasing the forecast time horizon means that models can make more accurate forecasting about trends and changes over a longer period of time, allowing more time to take measures to minimize risks. However, the increasing length of forecasted series also places more demands on time series forecasting models. 
+
+
+
+
+
+
+
+
+
+---
+
+==== 第 2 页 ====
+
+Research on multivariate long-term time series forecasting currently faces the following key challenges: (1) Robustness in modeling non-stationarity data (Kim et al., 2021; Zhao et al., 2023): The nonstationarity of time series is manifested by its statistical properties (such as mean and variance) changing over time, so the model must be capable of capturing and adapting to these changes as they change over time. (2) Capture complex temporal dependencies within each variable (Zhang et al., 2022): Each variable in a multivariate time series often exhibits multiple dependencies, including local dependencies reflecting short-term fluctuations and global dependencies revealing long-term trends. It is essential to capture these multiple dependencies effectively to improve forecast accuracy. (3) Capture complex inter-dependencies among variables: Multivariate time series often exhibit complex inter-dependencies among variables. When these interdependencies are neglected, it directly impacts the overall accuracy of the multivariate series forecasting. (4) Maintain efficient computation while maintaining forecasting performance (Ma et al., 2024): As the forecasted series lengthens, the model needs to effectively handle long-term dependencies while maintaining efficient computation. In addressing these challenges, the traditional statistical methods, relying on assumptions of data stationarity, often lack precision when addressing dynamically changing time series problems. Furthermore, these methods are inefficient and inflexible when it comes to capturing long-term dependencies and handling large-scale datasets. While deep learning methods have a significant advantage when dealing with non-linearity and complex patterns, time series forecasting research has steadily shifted towards this field. In terms of deep learning methods, Recurrent Neural Networks (RNN) models show potential for capturing internal temporal dependencies, but their efficiency is limited by vanishing gradients and lack of parallelism. Temporal Convolutional Networks (TCN), with deeper structures to expand their receptive fields, attempt to capture long-term dependencies, but they have limited ability to handle complex dependencies within variables. Transformer-based models, with their unique self-attention mechanism, are capable of effectively calculating the relevance of all positions in the input series, demonstrating exceptional ability to model long sequence dependencies. This has garnered widespread attention in long-term series forecasting problems. However, Transformer-based models still have some shortcomings, mainly related to computational complexity and capturing cross-temporal and cross-dimensional dependencies. 
+
+Transformer’s self-attention mechanism requires calculating the similarity between any two elements, leading to quadratic growth in computational and spatial complexity with the length of the time series. Researchers typically focus on finding ways to reduce computational complexity in order to solve this issue. LogTrans (Zhang et al., 2021), Informer (Zhou et al., 2021), and Pyraformer (Liu et al., 2021) all use sparse attention mechanisms to reduce computational demands. However, these models still perform dot-product attention calculations between each time step and rely on point-wise connections to capture temporal dependencies, resulting in high computational complexity when processing long time series, making their application on large-scale data difficult. Autoformer (Chen et al., 2021) computes self-correlations on top-k time-lagged sequences, and then applies aggregation operations across the entire lagged sequence to uncover inter-sequence dependencies, which requires complex Fourier transformations to calculate sequence correlations. The aforementioned methods typically perform correlation calculations at the point level or at the overall sequence level, leading to a high degree of redundancy in the computational process. Furthermore, the goal of time series forecasting is to understand relationships between different time steps, but unlike words in natural language sentences, individual time steps in a time series often lack explicit semantic meaning. Directly establishing dependencies between time points makes it more challenging to fully reflect the true internal dependencies of the time series (Nie et al., 2022). 
+
+Modeling time series with Transformer introduces another critical issue: The Transformer model’s global self-attention mechanism lacks local context perception in capturing cross-temporal dependencies. The global self-attention mechanism might overfocus on distant correlations while neglecting equally important closer local dependencies in time series, which can lead to decreased performance in capturing cross-temporal dependencies within a series despite the importance of local contextual dependencies. On the other hand, cross-dimensional dependencies in multivariate long-term time series forecasting are also important, meaning that the changes in one variable of a multivariate time series may be influenced by variables in other dimensions. For example, when predicting future humidity, a solely reliance on historical humidity data is insufficient; wind speed and temperature data must also be considered. However, Transformer-based deep learning models typically capture dependencies between variables by embedding data points from all dimensions at the same time step into a feature vector. Although this approach effectively captures temporal dependencies, it confuses the cross-dimensional dependencies between variables, resulting in Transformer models not functioning well in multivariate long-term time series forecasting. 
+
+In summary, existing research methods for multivariate long-term time series forecasting based on Transformer models face several key issues: (1) Standard Transformer models grows quadratically in computational complexity with an increase in the length of the time series to be processed, and directly establishing correlations between time points does not adequately reflect the internal dependencies within the time series. (2) Transformer’s global self-attention mechanism has limited sensitivity to local context. (3) There is a lack of ability to distinguish cross-dimensional dependencies among variables. We propose the Multi-Scale Convolution Enhanced Transformer model (MSCformer) for multivariate long-term time series forecasting. The model initially segments the time series into different lengths using a newly designed multi-scale time series segmentation module. This approach not only helps replace the traditional dot-product attention mechanism with a multi-scale segmented attention mechanism in subsequent modules, thereby reducing the quadratic increase in computational complexity associated with the length of the series, but also helps these segments better reflect represent the local characteristics and changing patterns of the time series. This provides a new way to capture the true internal dependencies of the time series, and utilizes the multi-scale nature of the data to enhance predictive performance. The multi-dependence aggregation module of the model combines attention mechanisms and convolutional structures for explicitly modeling both global and local dependencies of individual time series, enhancing the model’s capability for feature representation. A cross-dimensional dependency extraction network within this module identifies complex relationships and interactions among various variables, enabling the extraction of global dependency across dimensions. Comparing MSCformer model with state-of-the-art methods, we have validated its effectiveness on numerous benchmarks. The main contributions of this article are as follows: 
+
+• Multi-Scale Segmented Attention Mechanism: We propose an attention mechanism based on multi-scale time series segmentation in place of the traditional dot-product attention mechanism. As the segments at multiple scales retain the associative information at the series level, this mechanism effectively reduces computational complexity while better representing the patterns of change in the time series, as well as enhancing forecasting performance by utilizing multi-scale information.   
+• Local Dependency Compensation Strategy for Cross-Temporal Dependencies: A convolutional structure is introduced as a local dependency compensation network, enhancing the extraction of local features of time series. This offers a new solution to the issue of insufficient local context perception in the Transformer model’s global self-attention mechanism. 
+
+
+
+
+
+---
+
+==== 第 3 页 ====
+
+• Enhanced Modeling of Cross-Dimensional Dependencies: Taking into account the uniqueness of multivariate time series, we have bolstered the modeling of global cross-dimensional dependencies on top of capturing global temporal dependencies. This makes the model more suitable for multivariate long-term time series requiring complex modeling and precise forecasting. 
+
+The article is organized as follows. Section 2 reviews some mainstream methods for time series forecasting. Section 3 provides a detailed introduction to the construction of the MSCformer model. Section 4 demonstrates the advantages of the proposed method through extensive experiments on numerous real datasets. Section 5 concludes the work and offers prospects for future research directions. 
+
+# 2. Related work 
+
+Time series forecasting techniques, due to their widespread application across various fields, have garnered significant attention, ranging from classic statistical methods to the latest deep learning technologies. Despite significant improvements in the performance of multivariate long-term time series forecasting methods, there remain challenges to be addressed in the current state-of-the-art approaches. Methods for multivariate long-term time series forecasting can generally be categorized into classical statistical methods, methods based on RNN models, TCN models and Transformer models. 
+
+Classical statistical methods, such as Autoregressive (AR) models (Yule, 1927), Moving Average (MA) models (Walker, 1931), and Autoregressive Moving Average (ARMA) models (Box George et al., 1976), have gained wide attention due to their simplicity and interpretability. However, these methods often rely on a series of strict assumptions, such as stationarity. Moreover, when dealing with largescale multivariate long-term time series, they exhibit poor scalability and struggle to effectively capture complex dependencies within the time series, thus limiting their predictive performance on complex data. 
+
+In recent years, with the development of deep learning, an increasing number of studies have explored the application of deep learning models in time series forecasting. Recurrent Neural Networks (RNN) (Elman, 1990) and their variants, such as LSTM (Lai et al., 2018; Sutskever et al., 2014) and GRU (Dey & Salem, 2017), rely on their recursive structure to extract effective temporal dependencies from complex real-world data. The DeepAR model (Salinas et al., 2020) utilizes an autoregressive RNN model, effectively addressing the issue of inconsistent time series scales and select likelihood functions based on data feature to predict the probability distribution of time series. Although some works (Qin et al., 2017) have introduced additional attention mechanisms into RNN models to improve their predictive performance, these RNN-based models have not fundamentally solved issues such as vanishing gradients and lack of parallelism. The vanishing gradient problem restricts the RNN models’ ability to learn from distant data points in long time series, while the lack of parallelism hinders their application on large-scale data. Furthermore, when capturing complex interdependencies among variables in multivariate data, RNN models face challenges in processing high-dimensional input data. 
+
+Given the inherent limitations of recurrent structures that are difficult to fundamentally resolve, researchers have begun exploring novel deep learning approaches to address time series forecasting challenges. The success of Convolutional Neural Networks (CNN) in other domains has prompted researchers to explore their potential in multivariate long-term time series forecasting (Semenoglou et al., 2023; Sen et al., 2019). To adapt to time series datasets, Temporal Convolutional Networks (TCN) (Hewage et al., 2020) have been proposed. TCN-based models typically model from a local perspective, where convolutional kernels effectively extract local information from inputs. By stacking causally dilated convolutional layers with exponentially increasing dilation factors, the receptive field can be expanded to encompass the entire input space, thereby achieving overall information aggregation. 
+
+Within this framework, MICN (Wang et al., 2022) introduced a multiscale branching structure employing down-sampling convolutions and equidistant convolutions to better integrate local features and global correlations in time series. SCInet (Liu, Zeng et al., 2022) identified two limitations of dilated convolutions in conventional TCN networks. First, convolutional layers within the same layer utilize the same size convolutional kernels, primarily extracting average temporal features. Second, TCN’s intermediate layers have limited effective receptive fields, resulting in the loss of temporal relationships during feature extraction. Therefore, SCInet uses a binary tree structural design to extract time features at various resolutions, incorporating different convolutional filters. Although CNN-based models excel in capturing local dependencies, and many models also focus on expanding the feature extraction range of dilated kernels, they fail to explicitly capture the dependency between two distant locations as a result of the convolution kernel’s limited receptive field. It takes a long path to transmit information between two distant locations, which makes it still challenging to capture long-term dependencies, especially in the field of long time series analysis and prediction, where neglecting long-term dependencies may compromise the accuracy of data modeling. 
+
+Benefitting from the self-attention mechanism in Transformer models, these models have shown exceptional performance in various fields since (Vaswani et al., 2017) introduced the Transformer architecture in 2017. Unlike previous methods that require multiple layers to obtain global information, the self-attention mechanism in Transformer models enables the calculation of correlations across all input sequences in one go, efficiently capturing global information. In recent years, many studies have attempted to apply Transformer models to multivariate long-term time series forecasting. However, due to the quadratic relationship between the computational complexity of Transformer models and the length of the input time series, much research has been devoted to reducing this complexity. For instance, LogTrans (Zhang et al., 2021) uses a convolutional self-attention layer with a LogSparse design to capture local information, reducing spatial complexity. Informer (Zhou et al., 2021) introduces ProbSparse self-attention and distillation techniques to effectively extract key information. Autoformer (Chen et al., 2021) draws inspiration from traditional time series analysis with decomposition and autocorrelation concepts. FEDformer (Zhou et al., 2022) utilizes Fourier or wavelet transforms for self-attention operations in the frequency domain, reducing the computational complexity of the Transformer model. Pyraformer (Liu et al., 2021) employs a pyramid-style attention module with inter-scale and intra-scale connections, also reducing computational complexity. ETSformer (Woo et al., 2022) replaces the self-attention mechanism with exponential smoothing attention and frequency attention, improving model accuracy and efficiency. These models primarily focus on reducing the computational complexity of Transformer-like models but typically encode input data from all dimensions into a specified dimension when modeling dependencies in time series, overlooking the explicit modeling of cross-dimensional dependencies crucial in multivariate time series forecasting. 
+
+Recent studies have focused on cross-dimensional dependencies in time series data. An example like STformer (Xiao et al., 2024) considers cross-dimensional dependencies and is capable of handling multivariate time series. However, because it flatten two-dimensional time series into one-dimensional sequences, it has low computational efficiency and difficulties handling high-dimensional data and longterm forecasting. In contrast, Crossformer (Zhang & Yan, 2023) uses a hierarchical encoder–decoder architecture and a two-stage attention mechanism at different layers to extract cross-temporal and crossdimensional dependencies. Moreover, TSmixer (Chen et al., 2023) uses a time mixing multilayer perceptron (MLP) for modeling temporal patterns of time series, as well as a feature mixing MLP for modeling covariate information. 
+
+Unlike the aforementioned models, MSCformer does not use the traditional encoder–decoder structure for feature extraction, instead using only an encoder. By introducing a multi-scale segmentation module to change the data input format, MSCformer reduces the computational complexity of traditional Transformer models and intuitively utilizes the multi-scale features of data. Furthermore, considering the advantage of Transformer-like models in capturing global dependencies and their relative insensitivity to local dependencies, we believe that merely using feature embedding operations to capture local dependencies is inadequate. Therefore, our model not only comprehensively considers cross-temporal global dependency and cross-dimensional global dependency, but also adds local dependency, which provides a better solution to the problem of multivariate long time series modeling. 
+
+
+
+
+
+---
+
+==== 第 4 页 ====
+
+**Fig. 1. The overview of MSCformer. **
+![Fig. 1. The overview of MSCformer. ](images/72203c937bdfcd4ef023a03d3343fdf3bfa53d22636d243dd5a55b3057dff655.jpg)
+
+
+
+# 3. Methodology 
+
+This section describes the proposed MSCformer in detail. MSCformer’s overall structure is shown in Fig. 1. In the framework, three main modules are included: multi-scale segmentation module, multidependence aggregation module, and output forecasting module. MSCformer segments time series as input to the Transformer model using a newly designed multi-scale segmentation module. Our multi-scale segmentation strategy not only addresses the problem of manually selecting segment lengths but also provides multiple scale signals for subsequent modules to extract dependencies at various granularities. Moreover, since the number of segments is significantly smaller than the number of original time series points, this segmentation strategy effectively reduces the computational complexity for subsequent modules. Multi-dependence aggregation module is composed of a Time Global Dependence network (TGD), a Local Dependence Compensation network (LDC) and a Channel Global Dependence network (CGD). The module comprehensively captures global and local dependencies across time, as well as global dependencies across dimensions, thus greatly enhancing the model’s ability to understand the internal dynamics of time series and capture interactions between variables. The output forecasting module of the model consolidates information modeled at different scales to produce final forecasting. Detailed descriptions of each part of the model will be provided in the following sections. 
+
+
+
+# 3.1. Problem formulation 
+
+The core objective of time series forecasting is to predict future values based on known historical observations. Specifically, given a set of historical time series observations $\boldsymbol { \chi } _ { t } \in \mathbb { R } ^ { C \times W }$ , where $W$ denotes the size of the look-back window and $C$ represents the dimensions of the time series (the number of features), the goal is to predict the values of $C$ variables in the time series for the next $T$ time steps, which can be expressed mathematically as follows: 
+
+
+where $\mathcal { F } _ { t }$ represents the time series to be predicted, $T$ denotes the length of the time series to be forecast, and when the dimension of the time series $C \ > \ 1$ , $F ( \cdot )$ signifies a multivariate time series forecasting model. The task of a multivariate time series forecasting model is to use past variables to predict future values of the same dimensional variables. In scenarios where the number of time steps $T$ to be forecasted is significantly greater than the size of the look-back window $W$ , $F ( \cdot )$ is defined as a model for multivariate long-term time series forecasting. 
+
+In the context of multivariate time series forecasting, data dependency analysis from different perspectives and scales is required. This paper defines these as cross-temporal global dependences, local dependences and cross-dimensional global dependences specifically. Cross-temporal global dependencies $Z _ { i } ^ { t i m e }$ reflect the overall trends and cyclical fluctuations of the time series at a specific scale, used to reveal the data’s long-period patterns and global fluctuation trends; local dependencies $Z _ { i } ^ { l o c a l }$ reflect a detailed analysis of short-term patterns within the time series at a specific scale, aimed at reveal responding sensitivity to sudden events or short-term changes; cross-dimensional global dependencies ????ℎ???????????? demonstrate the interactions and dependencies between different features at a specific scale, focusing on the synergistic effects among various variables. The extraction of the model’s dependencies can be represented as: 
+
+
+where $\chi _ { \mathrm { t } }$ represents the input data of the model, and $f ( \cdot ) , g ( \cdot ) , w ( \cdot )$ are defined as the respective dependency extraction modules. The goal of the multivariate long-time series prediction model is to capture these dependencies from the data and reconstruct future sequences based on them. 
+
+# 3.2. The multi-scale segmentation module 
+
+A time series’ statistical properties, such as mean and variance, often change over time. It is known as the distribution shift effect in time series, and implies that the data distribution may change significantly at different time points or periods. Those distribution shifts often make it challenging for models to capture features that adapt to the current data, thereby affecting forecasting performance. This adaptability issue is also one of the most challenging aspects of multivariate time series forecasting. To address this problem, normalization techniques are commonly used to process input data, employing the mean and variance of each variable in a multivariate series to fix the distribution of the model’s input data, thus reducing model learning difficulty. Recently, this normalization method has been proven to effectively enhance forecasting accuracy (Kim et al., 2021). The normalization formula is based on the following: 
+
+
+
+
+
+---
+
+==== 第 5 页 ====
+
+**Fig. 2. The detail of multi-scale segmentation (Suppose that $L _ { 0 } = 2 , W = 1 6 , C = 2 )$ . **
+![Fig. 2. The detail of multi-scale segmentation (Suppose that $L _ { 0 } = 2 , W = 1 6 , C = 2 )$ . ](images/731bd0856aa4e8e9812155cddd99105cdba9484e662d5184b1fc180dde1f0d06.jpg)
+
+
+
+
+where $\hat { \chi } _ { t }$ represents the time series after normalization, while $\chi _ { t }$ is the original time series. $E \left[ \chi _ { t } \right]$ and Var $\left[ \chi _ { t } \right]$ denote the mean and variance of each variable in the input data $\chi _ { t }$ . However, normalization operations can cause varying degrees of inconsistency in data metrics within the model during the learning process. This inconsistency prevents the model from capturing the original distribution, which can adversely affect predictive performance. To address this issue, a strategy of denormalization at the output is considered. This approach re-injects the information removed during the normalization process back into the data, ensuring that the metrics of the data at the output are consistent with those of the original data and the model does not have to reconstruct the original distribution itself while keeping the advantage of normalizing the input. Based on Eq. (3), the denormalization formula is as follows: 
+
+
+where $E \left[ \chi _ { t } \right]$ and $\mathrm { V a r } \left[ \chi _ { t } \right]$ represent the mean and variance of each variable in the original data calculated at the input end. $\mathcal { F } _ { t } ^ { i }$ is the predictive result generated by the model at each scale, and $\hat { \mathcal { F } } _ { t } ^ { i }$ denotes the denormalized model input forecasting result. Using Eqs. (3) and (4) can effectively mitigate the issue of inconsistency in the distribution metrics of the time series. 
+
+Subsequent operations are based on the normalized time series $\hat { \chi } _ { t }$ . Transformer has demonstrated outstanding long-term dependency modeling capabilities in numerous fields. While when processing time series, it faces the problem of high computational complexity. Thus, it is necessary to find a method that both leverages the Transformer model’s advantages and reduces its computational complexity effectively. 
+
+The divide-and-conquer approach is an effective strategy for reducing complexity, thus sequence segmentation is introduced. In the multiscale segmentation module, the input time series points are transformed into segments. Fig. 2 illustrates the specific segmentation process. Starting from a smaller initial segment length $L _ { 0 }$ , the segment length increases exponentially. The formula is given as: 
+
+
+where $i \in \left\{ 0 , 1 , \dotsc , l _ { m a x } \right\}$ , $l _ { \mathrm { m a x } } ~ = ~ \left\lfloor \log _ { 2 } \left( W / L _ { 0 } \right) - 1 \right\rfloor$ and $W$ is the size of the time series look-back window. Using this segment length, the original time series points are divided into segments of varying lengths, with a step length of $L _ { i } / 2$ for each segment. Consequently, the normalized time series matrix $\hat { \boldsymbol { \chi } } _ { t } \in \mathbb { R } ^ { C \times W }$ is unfolded into an input $X ^ { i }$ with segment structures using Eq. (6). 
+
+
+where $L _ { i }$ denotes the segment length at each scale, and $\begin{array} { r l } { N } & { { } = } \end{array}$ $ { \lfloor 2 W / L _ { i } - 1 \rfloor }$ is the number of segments for the corresponding scale. 
+
+When the look-back window W cannot be evenly divided by $L _ { i }$ , in order to ensure uniformity of segments, the last value within the look-back window is replicated $L _ { i } / 2$ times and appended to the end of the original series, ensuring all segments are uniform. 
+
+Through this segmentation process, the original time series is transformed into several segments of length $L _ { i }$ . This segmentation strategy significantly optimizes the feature extraction performance of the subsequent multi-dependence aggregate module. On the one hand, as the number of segments is far less than the number of original time series points, the number of input tokens is reduced from $W$ in the dot-product attention mechanism to $W / L _ { i }$ , significantly reducing the computational burden of the subsequent Transformer model. Memory consumption and computational complexity for calculating the attention map have been significantly reduced. Further, by using segmented structures as inputs to the model, each segment retains semantic information at a sequence level, allowing adjacent time points with similar features to be aggregated effectively, better reflecting the true internal dependencies of the series. Simultaneously, the length of the time series segments determines the granularity of the segment attention mechanism. A larger segment length helps capture coarse-grained temporal dependencies in the time series, whereas a smaller segment length focuses on capturing fine-grained dependencies. In this way, the multiscale segment attention mechanism maintains low complexity while minimizing the impact of hyperparameter segment length selection on model performance, and integrates multi-scale information to achieve accurate forecasting. 
+
+Subsequently, a linear layer $W _ { m l p } \in \mathbb { R } ^ { L _ { i } \times D }$ projects these segments $X _ { i } \in \mathbb { R } ^ { C \times N \times L _ { i } }$ into a latent space of model dimension $D$ and a learnable positional encoding $W _ { p o s } ~ \in ~ \mathbb { R } ^ { C \times N \times D }$ is applied to compensate for temporal information within the time series, resulting in $X _ { i } ^ { \prime } \in \mathbb { R } ^ { C \times N \times D }$ , which serves as the input fed into the subsequent model. The data transformation process is specifically expressed as follows: 
+
+
+# 3.3. Multi-dependence aggregate module 
+
+To address the limitations of existing methods in modeling multivariate long-term time series, particularly their lack of focus on local and cross-dimensional information, this section introduces the MultiDependence Aggregate module (MDA). The constructed Time Global Dependence network (TGD) is used to extract cross-temporal global dependencies. Building upon TGD, a Local Dependence Compensation network (LDC) is introduced to compensate for the local dependency information within time series segments. The global dependency extraction by TGD and the local dependency compensation by LDC work in tandem, allowing the model to simultaneously capture fine-grained local changes and broad global trends in the time series. Additionally, to further enhance the model’s understanding of interactions between different variables, a Channel Global Dependence network (CGD) has been developed to extract cross-dimensional global dependencies, thereby significantly improving the accuracy and efficiency of multivariate long-time series predictions. The information extraction process can be represented as: 
+
+
+where $X _ { i } ^ { \prime }$ is the data after segmentation processing and dimensional embedding. The model’s information processing flow adopts a sequential processing strategy to progressively deepen its data analysis capability, with $Z _ { i } ^ { t i m e } , ~ Z _ { i } ^ { l o c a l }$ and $Z _ { i } ^ { c h a n n e l }$ representing the extracted cross-temporal global dependencies, local dependencies and crossdimensional global dependencies, respectively. Compared to multimodal fusion methods, the sequential processing structure offers richer interpretability. 
+
+
+
+
+
+---
+
+==== 第 6 页 ====
+
+**Fig. 3. The detail of Time Global Dependence. **
+![Fig. 3. The detail of Time Global Dependence. ](images/441f4280abe69e2757a184f2180c19e3897dbffd0ad53e6a6206016c2c683f36.jpg)
+
+# 3.3.1. Time Global Dependence extraction network 
+
+Multivariate time series exhibit unique features and dynamics at different time points. Capturing cross-temporal dependencies means better extraction of the data’s evolving patterns over time, thereby deeply understanding the essence and dynamic characteristics of the data. Convolutional networks, fully connected networks, and other methods were used in early research to capture long-term dependencies in multivariate time series. In CNN-based methods, however, the size of the convolutional kernel is usually much smaller than the input data length. Therefore, many convolutional layers must be stacked consecutively to aggregate the overall information, but it is uncertain whether continuous stacking can completely extract long-term dependencies is uncertain, which limits the model’s ability to model long-term dependencies. In contrast, simple linear models, such as fully connected layers, struggle to capture complex long-term dependencies in time series due to their limited expressive power. Due to these limitations, the aforementioned models are unable to fully understand and predict the dynamic features of multivariate time series. In comparison, Transformer’s attention mechanism considers the feature representation of each time step in the time series comprehensively and correlates it with features of other time steps, effectively mining global dependencies across time. 
+
+In contrast to conventional attention mechanism applied directly to data points, we propose using attention mechanisms on time series segments divided into different scales by the multi-scale segmentation module. In addition to the previously mentioned reduction in computational complexity, this approach also makes time series modeling more explanatory. 
+
+Specifically, each time series segment obtained in Section 3.2 is treated as data within a time window, corresponding to patterns or relationships within that period of time. It is easier to associate with actual events or phenomena. For example, in weather forecasting, each segment corresponds to data over a period of time, making the model’s forecasting more easily linked to actual weather conditions; in stock market forecasting, each segment corresponds to market dynamics over a period of time, preserving the temporal information of the original data. Based on this, we constructed the Time Global Dependence extraction network (TGD), whose structure is shown in Fig. 3. TGD encodes time series segments using a self-attention mechanism. First, the query matrix $Q _ { i }$ , key matrix $K _ { i } ,$ , value matrix $V _ { i }$ of the output $X _ { i } ^ { \prime }$ of the multiscale segmentation module are generated through linear projection, where $Q _ { i } , \ K _ { i } , \ V _ { i } \ \in \ \mathbb { R } ^ { C \times N \times D } , \ F _ { q } , \ F _ { k } , \ F _ { v }$ are all linear layers. When performing linear transformation to obtain $Q _ { i } , ~ K _ { i } , ~ V _ { i }$ , Transformer introduces learnable parameters with a well-defined structure. This significantly enhances the network’s learning capability and enables the model to capture contextual information more comprehensively. 
+
+
+Subsequently, according to the principles of multi-head attention, $Q _ { i } , K _ { i } , V _ { i }$ are partitioned to generate $q _ { i } ^ { ( j ) }$ ??(??), ??(??) ∈ R??×??×??head , where , $j = 1 , 2 , \dots , H$ , $H$ and $d _ { \mathrm { h e a d } }$ respectively represent the number of heads and the dimension of each head in the multi-head attention mechanism. 
+
+
+Furthermore, as multivariate time series comprise multiple time series variables, each with its own independent cross-temporal dependencies, to independently model the dependencies of time series in the temporal dimension, a variable independence setting named ChannelIndependent (CI) is adopted. This transform $q _ { i } ^ { ( j ) } , k _ { i } ^ { ( j ) } , v _ { i } ^ { ( j ) }$ into ??(??),(??)?? , $k _ { i } ^ { ( j ) , ( \bar { c } ) } , v _ { i } ^ { ( j ) , ( c ) } \in \mathbb { R } ^ { N \times d _ { h e a d } }$ , for $j = 1 , 2 , \dots , H$ , ${ \mathfrak { c } } = 1 , 2 , \dots , C$ , where each input of the Transformer model comes solely from the information of a single variable. 
+
+
+Next, $q _ { i } ^ { ( j ) , ( c ) } , k _ { i } ^ { ( j ) , ( c ) } , v _ { i } ^ { ( j ) , ( c ) }$ are used for the calculation of the attention mechanism. Multiplying produces the attention distribution $q _ { i } ^ { ( j ) , ( c ) } , \ k _ { i } ^ { ( j ) , ( c ) }$ $E _ { i } ^ { ( j ) , ( c ) }$ ?? and scaling by ℎ??????for the segments of the time series. Then, the attention distribution is normalized using the softmax function. 
+
+Finally, the processed attention distribution is multiplied by the correspondin g ??(??),(??) t o obtain the output of the attention mechanism $\mathsf { A t t n } _ { i } ^ { ( j ) , ( c ) } \in \mathbb { R } ^ { N \times { } d _ { \mathrm { h e a d } } }$ . The outputs of all heads and variables are then concatenated to form the final output of the multi-head attention ${ O _ { i } } ~ \in ~ \mathbb { R } ^ { C \times N \times D }$ . The calculation process of the multi-head attention mechanism is summarized in Fig. 4, and the data transmission process is expressed as follows: 
+
+
+The Time Global Dependence extraction network also includes a BatchNorm layer and a feed-forward network with residual connections as shown in Eq. (12). By doing so, vanishing gradients are alleviated and a faster training process is possible, leading to deeper network architectures and reduced overfitting. The output of the cross-temporal dependence capture module at each scale is defined as $Z _ { i } ^ { t i m e }$ . Therefore, the final output form of the Time Global Dependence extraction network is ???? ∈ R??×??×??. 
+
+
+
+
+
+
+---
+
+==== 第 7 页 ====
+
+**Fig. 4. Algorithm flow of the multi-head attention mechanism. **
+![Fig. 4. Algorithm flow of the multi-head attention mechanism. ](images/6fbf32beded907dba0798c31c3eb2b95d25dfab06b8a1cada8eb89258b81070c.jpg)
+
+# 3.3.2. Local dependence compensation network 
+
+To compensate for the limitations of self-attention mechanism in focusing on local dependencies, multi-dependence aggregate module introduces the Local Dependence Compensate (LDC) network within segments to extract local dependency characteristics of each segment. Since convolution operations effectively capture local correlations, the LDC employs a convolutional structure to build this network, as illustrated in Fig. 5. 
+
+The convolution module consists of a gating mechanism composed of Pointwise Convolution and GLU (Gated Linear Unit). Pointwise Convolution, by using a convolution kernel for dimension expansion, enhances the model’s representational capability, enabling it to capture complex features more effectively. The GLU introduces a gating mechanism that allows the network to selectively focus on and learn important features in the input while suppressing unimportant ones. Through this mechanism, the model is able to better understand local features and correlations in the data, improving its efficiency, representation capability, and non-linear modeling capability, while reducing the impact of redundant data. Depthwise Convolution is then introduced, a process similar to regular convolution, for extracting local features. LayerNorm and BatchNorm are also incorporated to facilitate training, and residual connections are used to accelerate training. With gating mechanism (GLU), pointwise convolution, and depth-wise convolution, and regularization and residual connections added, a network structure is constructed that efficiently captures local dependencies. Using this structure, the model’s complexity and computational cost are reduced while its performance is enhanced. The computation process can be represented as follows: 
+
+
+GLU and Swish are two different activation functions. As shown in Eq. (14), the GLU activation function first splits the input vector $x$ into two parts: $x _ { 1 }$ and $x _ { 2 }$ , with a gating mechanism selectively focusing on one part. This process is achieved by mapping each element in $x _ { 1 }$ through a Sigmoid function to a range between 0 and 1, and then multiplying it by $x _ { 2 }$ . This mechanism allows the network to selectively focus on different parts of the input, helping to dynamically and adaptively weight different parts of the input. 
+
+
+
+
+The Swish activation function consists simply of an input vector $x$ and a sigmoid function, defined as follows: 
+
+
+# 3.3.3. Channel global dependence extraction network 
+
+In multivariate time series forecasting, it is crucial to understand not only the historical sequence features within each variable, but to also consider the inter-variable correlations to fully capture their dependencies, thereby enhancing forecasting accuracy. The Channel Global Dependence network (CGD) applies a self-attention mechanism in the variable domain $C$ to obtain cross-dimensional dependencies between different variables, as shown in Fig. 6. 
+
+The computation process of CGD first involves using linear projections to generate linear projection matrices based on the output of the Local Dependence Compensate network $Z _ { i } ^ { l o c a l }$ , and then splitting them principles of multi-head attention to generate . $q _ { i } ^ { ( j ) } , k _ { i } ^ { ( j ) }$ $v _ { i } ^ { ( j ) } \in \mathbb { R } ^ { C \times N \times d _ { \mathrm { h e a d } } }$ 
+
+
+In processing the input of the Transformer model, unlike the previous approach that focused on information from a single variable, here each input comes from specific time segments of each variable. An independence setting named Time-Independent (TI) is adopted, which transforms $q _ { i } ^ { ( j ) } , k _ { i } ^ { ( j ) } , v _ { i } ^ { ( j ) }$ into ??(??),(??), $k _ { i } ^ { ( j ) , \tilde { ( } n ) }$ , $v _ { i } ^ { ( j ) , ( n ) } \in \mathbb { R } ^ { C \times d _ { \mathrm { h e a d } } }$ : 
+
+
+Multiplying ??(?? $q _ { i } ^ { ( j ) , ( n ) }$ ) and ??(??),(??) generates the attention distribution for time series segments, scaled by the factor $d _ { \mathrm { h e a d } }$ . This attention distribution is then normalized using the softmax function. Subsequently, it is multiplied by the corresponding $v _ { i } ^ { ( j ) , ( n ) }$ , yielding the output $\mathsf { A t t n } _ { i } ^ { ( j ) , ( n ) } \in$ $\mathbb { R } ^ { C \times d _ { \mathrm { h e a d } } }$ : 
+
+
+The outputs are concatenated as the output of multi-head attention $O _ { i } \ \in \ \mathbb { R } ^ { C \times N \times D }$ . The output of $O _ { i }$ after passing through a BatchNorm layer and a feed-forward network with residual connections, serves as the final output of the module $Z _ { i } \in \mathbb { R } ^ { C \times N \times D }$ . The computation process can be represented as follows. 
+
+
+With its two global dependence extraction networks, the multidependence aggregate module effectively captures the dependencies in two key dimensions of multivariate time series: cross-temporal dependence for a single variable and cross-dimensional dependence for different variables. This comprehensive analysis of dependencies enables a better understanding of time series’ integrated characteristics. The cross-temporal dependence analysis reveals the trends and behavior patterns of a single variable over time, which are crucial for predicting future trajectories. The cross-dimensional dependence analysis, on the other hand, reveals the interactions and influences between variables. Further, by combining these global dependencies with local dependence networks, multivariate time series forecasting models are provided with more detailed and accurate. In this way, key characteristics of multivariate time series can be uncovered, improving the forecasting accuracy and model robustness. 
+
+
+
+
+
+---
+
+==== 第 8 页 ====
+
+**Fig. 5. The detail of Local Dependence Compensation. **
+![Fig. 5. The detail of Local Dependence Compensation. ](images/8ca281d89fb21094c7302b373dcbd00daaaa1ebfbfe48f4525d4e4c6b9c254e5.jpg)
+
+**Fig. 6. The detail of Channel Global Dependence. **
+![Fig. 6. The detail of Channel Global Dependence. ](images/25bbe436ab7957a452a575c0563434a2912f09a9300b5b8065058c38fa5a4f94.jpg)
+
+# 3.4. The output forecasting module 
+
+The MSCformer model employs a multi-scale segmentation module, enabling it to consider dependencies across various time scales and better adapt to the diversity of time series. In the output forecasting module, it follows a simple yet effective principle to fuse dependencies at various scales to reconstruct future sequences. Specifically, it first uses a Flatten layer to transform $Z _ { i } ^ { c h a n n e l } \ \in \ \mathbb { R } ^ { C \times N \times D }$ into $L _ { i } ^ { c h a n n e l } ~ \in$ $\mathbb { R } ^ { C \times N * D }$ , and then a single linear layer is used instead of a traditional decoder to generate forecasting results at each scale $\mathcal { F } _ { t } ^ { i } \in \mathbb { R } ^ { C \times T }$ . 
+
+
+Subsequently, denormalization is applied at the $\mathcal { F } _ { t } ^ { i }$ , yielding denormalized model input forecasting results $\hat { F } _ { t } ^ { i } \in \mathbb { R } ^ { C \times T }$ . 
+
+
+Here, $E \left[ \chi _ { t } \right]$ and $\mathrm { V a r } \left[ \chi _ { t } \right]$ represent the mean and variance of the original data calculated at the input, with $\hat { \mathcal { F } } _ { t } ^ { i } ~ \in ~ \mathbb { R } ^ { C \times T }$ being the forecasting result produced by the model at each scale. 
+
+The model employs four different methods for aggregating outputs across multiple scales, including equal weight aggregation, exponential decay weight aggregation, learnable weight aggregation, and weighted average aggregation. The equal weight aggregation assigns the same weight to dependencies at different scales, emphasizing the contribution of each scale to provide a more comprehensive forecast; exponential decay weight aggregation assigns greater weight to information at lower scales, emphasizing the importance of lower-scale information in prediction and enhancing the model’s sensitivity to specific scale information; the learnable weight aggregation approach defines learnable weights for outputs at each scale, which are updated through network training, offering the flexibility to automatically adjust weights to adapt to data across different scales, thus emphasizing data-driven weight optimization; and weighted average aggregation assigns weights based on the segment length at each scale, balancing the global perspective from higher scales with the detailed feedback from lower scales. The specific formulas for these four aggregation methods are as follows: 
+
+
+
+# Equal weight aggregation: 
+
+
+# Exponential decay weight aggregation: 
+
+
+# Learnable weight aggregation: 
+
+
+where $\alpha _ { 0 } . . . \alpha _ { i }$ are all learnable weight factors. 
+
+
+
+
+
+---
+
+==== 第 9 页 ====
+
+**Fig. 7. The detail of MSCformer. **
+![Fig. 7. The detail of MSCformer. ](images/7adea38f931230ed1e78e5b1087a6b3780d192030573c7a8daf7cc03ac971da8.jpg)
+
+# Weighted average aggregation: 
+
+
+$\boldsymbol { \mathcal { F } } _ { t } \in \mathbb { R } ^ { C \times T }$ is the final predictive output of the model. This multiscale information aggregation strategy enhances MSCformer’s forecasting accuracy and robustness, making it highly effective in multivariate long-term time series forecasting. The overall framework of the model is illustrated in Fig. 7. 
+
+# 3.5. Algorithm flow 
+
+The following section provides a detailed description of the entire framework of MSCformer. To summarize the model process, Algorithm 1 constructs an algorithmic flowchart, concisely outlining the MSCformer method’s workflow. 
+
+# 4. Experiment 
+
+To validate the predictive performance of the proposed MSCformer, extensive experiments were conducted on six real-world multivariate datasets, with a detailed analysis of the results. This section first introduces the experimental setup, datasets, evaluation metrics, and benchmark comparison algorithms used in the experiments. The proposed method is then validated across multiple experiments. 
+
+# 4.1. Experimental settings 
+
+MSCformer was implemented using the Pytorch deep learning framework and trained on an Nvidia RTX 4090 GPU (24 GB). To enhance reproducibility of results, random seeds were fixed. By default, MSCformer comprises 3 encoder layers, with the number of heads $( H )$ set to 16 and the model hidden dimension $( D )$ to 128. The feedforward network consists of two linear layers with Swish activation functions: one layer projects the hidden representation $D = 1 2 8$ to a new dimension $F = 2 5 6$ , and the other projects it back to $D = 1 2 8$ . For particularly small datasets like Illness and Exchange-rate, reducedsize parameters $\mathbf { \nabla } \cdot \mathbf { H } = 4$ , $D = 1 6$ , $F = 1 2 8$ , ?????????????? $= 0 . 3$ ) were used to mitigate potential overfitting. All experiments, except on the Illness and Exchange-rate datasets, employed a Dropout rate of 0.2 in the encoder and used Mean Squared Error (MSE) as the loss function. An Adam optimizer was used, with other parameter settings consistent with most comparison methods. 
+
+# Algorithm 1 MSCformer 
+
+# 
+
+Input multivariate time series $\boldsymbol { \chi } _ { t } \in \mathbb { R } ^ { C \times W }$ , initial segment length ??0, aggregate weight ??0, ??1, …, ????max 
+
+# Output: 
+
+Output multivariate time series $\boldsymbol { \mathcal { F } } _ { t } \in \mathbb { R } ^ { C \times T }$ 
+
+1: Normalize the original time series points with $\begin{array} { r l r } { \hat { \chi } _ { t } } & { { } = } & { \chi _ { t } \textrm { -- } } \end{array}$ $E \left[ \chi _ { t } \right] / \sqrt { \operatorname { V a r } \left[ \chi _ { t } \right] + \epsilon } .$ 
+
+2: $X _ { i } \ =$ Multi−scale Segment $( \hat { \chi } _ { t } )$ . Transform input time series points into segments. 
+
+3: for $i$ in $\{ 0 , \ldots , \log _ { 2 } { ( W / L _ { 0 } ) } - 1 \}$ do 
+
+4: $X _ { i } ^ { \prime } ~ = ~ X _ { i } W _ { m l p } + W _ { p o s }$ . Perform position embedding and input embedding. 
+
+5: $Z _ { i } ^ { t i m e } = \mathrm { T G D } \left( X _ { i } ^ { \prime } \right)$ . Capture cross-temporal dependencies of the multivariate time series. 
+
+$Z _ { i } ^ { l o c a l } = \mathrm { L D C } \left( Z _ { i } ^ { t i m e } \right)$ . Compensate for local dependencies. 
+
+7: $\begin{array} { r c l } { Z _ { i } ^ { l o c a l } } & { = } & { \mathrm { T r a n s p o s e } \left( Z _ { i } ^ { l o c a l } \right) } \end{array}$ . Transpose $Z _ { i } ^ { l o c a l }$ for subsequent cross-dimensional dependency extraction. 
+
+8: $Z _ { i } ^ { c h a n n e l } = \mathrm { C G D } \left( Z _ { i } ^ { l o c a l } \right)$ . Capture cross-dimensional dependencies among variables of the multivariate time series. 
+
+9: $\mathcal { F } _ { t } ^ { i } =$ Linear $\left( Z _ { i } ^ { c h a n n e l } \right)$ . Obtain forecasting results. 
+
+10: $\widehat { \mathcal { F } _ { t } ^ { i } } = \left( \sqrt { \mathrm { V a r } \left[ \chi _ { t } \right] + \epsilon } \right) \mathcal { F } _ { t } ^ { i } + E \left[ \chi _ { t } \right]$ . Denormalize the forecasting results. 
+
+# 11: end for 
+
+12: $\mathcal { F } _ { t } = \alpha _ { 0 } \mathcal { F } _ { t } ^ { 0 } + \alpha _ { 1 } \mathcal { F } _ { t } ^ { 1 } + \cdots + \alpha _ { l _ { \operatorname* { m a x } } } \mathcal { F } _ { t } ^ { i }$ . Aggregate results across differentng 
+
+# 13: return $\textstyle { \mathcal { F } } _ { t }$ 
+
+14: Use Mean Squared Error (MSE) to compute the loss function   
+15: Update parameters through gradient descent. 
+
+# 4.2. Datasets 
+
+To validate the robustness of MSCformer’s predictive performance, six popular multivariate datasets Table 1 were selected for experiments in multivariate time series forecasting. The datasets used in the experiments include (1) Electricity1: recording hourly electricity consumption of 321 clients from 2012–2014. (2) Traffic2: occupancy rates on San Francisco freeways recorded by sensors from January 2015 to December 2016. (3) Illness3: patient counts and influenza-like illness ratios recorded weekly by the US Centers for Disease Control and Prevention from 2002 to 2021. (4) ETT-h (Zhou et al., 2021): load and oil temperature data of a power transformer in China, recorded from July 2016 to July 2018. (5) Weather4: 21 meteorological indicators, such as humidity and temperature, collected every $1 0 \ \mathrm { m i n }$ in 2020 by the Max Planck Institute for Biogeochemistry in Germany. (6) Exchange-rate (Lai et al., 2018): daily exchange rate records from eight countries from 1990 to 2016. The preprocessing scheme for datasets was consistent with previous studies (Zeng et al., 2023; Zhou et al., 2022, 2021). Specifically, the ETT-h dataset was divided into training/validation/test sets in a 6:2:2 ratio. In contrast, other datasets employed a split ratio of 7:1:2. 
+
+
+
+
+
+
+---
+
+==== 第 10 页 ====
+
+**Table 1 Datasets used for multivariate time series forecasting task. **
+![Table 1 Datasets used for multivariate time series forecasting task. ](images/ce36a7b0ea95215b1c62cdbaf17217ff693754a6e419e283095fd756feb4667a.jpg)
+<table><tr><td>Dataset</td><td>Length</td><td>Variates</td><td>Frequency</td></tr><tr><td>Electricity</td><td>26304</td><td>321</td><td>1h</td></tr><tr><td>Traffic</td><td>17 544</td><td>862</td><td>1h</td></tr><tr><td>Illness</td><td>966</td><td>7</td><td>1 week</td></tr><tr><td>ETT-h</td><td>17 420</td><td>7</td><td>1h</td></tr><tr><td>Weather</td><td>52696</td><td>21</td><td>10 min</td></tr><tr><td>Exchange-rate</td><td>7588</td><td>8</td><td>1 day</td></tr></table>
+
+
+
+# 4.3. Baseline 
+
+To ascertain MSCformer’s state-of-the-art performance, it was compared with current advanced models. These models include Autoformer (Chen et al., 2021), Informer (Zhou et al., 2021), Non-stationary Transformer (Liu, Wu et al., 2022), FEDformer (Zhou et al., 2022), Dlinear (Zeng et al., 2023), TimesNet (Wu et al., 2022), PatchTST (Nie et al., 2022), NBEATS (Oreshkin et al., 2019), TiDE (Das et al., 2023), TSMixer (Chen et al., 2023), MultiWaveNet (Tian et al., 2024), Vector Autoregression (Cryer, 1986), Vector Exponential Smoothing (Cryer, 1986), ETSformer (Woo et al., 2022) and the simple Repeat-C model, which uses the last value in the look-back window as the forecast, provide 15 baseline models available for comprehensive comparison. 
+
+# 4.4. Evaluation metric 
+
+To facilitate a clear comparison of the predictive performance of MSCformer with other methods, two widely used metrics, Mean Squared Error (MSE) and Mean Absolute Error (MAE), are employed as evaluation indices for multivariate time series forecasting. The Mean Squared Error (MSE) represents the average of the squared differences between predicted and actual values, while the Mean Absolute Error (MAE) represents the average of the absolute differences between predicted and actual values. The definitions of MSE and MAE are as follows: 
+
+
+where $T$ is the length of the time series to be predicted, $\widehat { y } _ { i }$ represents the predicted value by MSCformer, and $y _ { i }$ denotes the actual value. 
+
+Furthermore, to more accurately assess model’s performance relative to naive forecasting, the Mean Absolute Scaled Error (MASE) has been introduced as a comparative metric. MASE provides a standardized measurement of error by comparing the model’s Mean Absolute 
+
+Error (MAE) to the MAE of a naive forecast. It allows the model’s performance to be assessed relative to a baseline model. Specifically, a MASE value less than 1 indicates the model’s predictive MAE is lower than that of the naive forecast, which means that the model has better predictive performance than a naive forecast; on the other hand, a MASE value greater than 1 indicates that the model has inferior predictive performance to the naive approach: 
+
+
+# 4.5. Experimental results of multivariate time series forecasting 
+
+Table 2 showcases the comparative results of MSCformer with other multivariate long-term time series prediction methods. The findings indicate that MSCformer possesses superior long-term predictive performance for multivariate time series compared to other methods. In 48 forecasts across six benchmark datasets, MSCformer performed best in 29 cases and best or second-best in 43 experiments. Compared to the current leading PatchTST model, MSCformer significantly reduced MSE across different prediction lengths. Specifically, the average predictive accuracy computed across four different prediction lengths indicates that MSCformer reduced MSE on Electricity, Traffic, Illness, ETT-h, Weather, and Exchange-rate datasets by $8 . 9 0 \%$ , $7 . 9 2 \%$ , $2 4 . 9 \%$ , $1 . 0 5 \%$ , $1 . 9 3 \%$ and $3 . 8 1 \%$ respectively. On large-scale datasets such as Traffic and Electricity, MSCformer achieved particularly notable performance improvements, reflecting the advantage of large datasets in providing abundant data samples, enabling the model to capture finer variable relationships. Compared to past methods, MSCformer more comprehensively utilized information across multiple time scales, accurately capturing the internal dependency structure of time series. This multi-scale modeling approach is particularly important for handling large-scale datasets rich in variation and complexity. MSCformer also demonstrated excellent performance on small-scale datasets like Illness, thanks to the effective application of the Local Dependence Compensation module, enhancing predictive capabilities on smaller datasets. Moreover, for the Exchange-rate, the simple Repeat-C model outperformed other models, it can be attributed to the high noise, ambiguity and randomness of the exchange-rate dataset, which makes complex models ineffective at capturing true trends, while simple persistence models may be better adapted to such random fluctuations (Meese & Rogoff, 1983; Moosa & Burns, 2014). 
+
+Overall, MSCformer’s significant performance enhancement is attributed to its comprehensive dependency capturing modules, including across-variable and across-time dependency capture, and the local dependence compensation module. These innovations render MSCformer more comprehensive in understanding and modeling the intrinsic dependency structure of multivariate time series, allowing it to excel in prediction tasks and provide reliable prediction support for practical applications. 
+
+To further evaluate our model’s performance relative to the naive model Repeat-C, the MASE metric was further explored. The best results are highlighted in bold. As shown in Table 3, across 24 benchmark tests on six datasets, MSCformer achieved the best results in 20 cases, demonstrating its superior performance. Compared to the naive model, our model is clearly superior, further confirming the significant improvements in prediction accuracy offered by MSCformer. 
+
+# 4.6. More results on ablation study 
+
+# 4.6.1. Main ablation experient 
+
+The MSCformer model relies on three key modules: cross-temporal dependency extraction in independent time series, local dependency compensation in time series segmentation, and cross-dimensional dependency extraction among multivariate data. To validate the impact of these modules on model performance, the study constructed three variants: MSCformer-a, which removes the cross-temporal dependency extraction module, neglecting the extraction of dependencies within variables. MSCformer-b, which omits the local dependency compensate module, ignoring the supplementation of internal local dependencies in segments. MSCformer-c, which removes the cross-dimensional dependency extraction module between multivariate data, disregarding the dependencies among different variables, to assess their respective roles. 
+
+
+
+
+
+
+---
+
+==== 第 11 页 ====
+
+**Table 2 MSCformer’s long-term multivariate forecasting results. For the illness dataset, the look-back window size $W = 3 6 ,$ , with prediction lengths $T \in \{ 2 4 , 3 6 , 4 8 , 6 0 \}$ ; for other datasets $W = 9 6$ , with prediction lengths $T \in \{ 9 6 , 1 9 2 , 3 3 6 , 7 2 0 \}$ . The best results are highlighted in red, and the second-best in blue. **
+![Table 2 MSCformer’s long-term multivariate forecasting results. For the illness dataset, the look-back window size $W = 3 6 ,$ , with prediction lengths $T \in \{ 2 4 , 3 6 , 4 8 , 6 0 \}$ ; for other datasets $W = 9 6$ , with prediction lengths $T \in \{ 9 6 , 1 9 2 , 3 3 6 , 7 2 0 \}$ . The best results are highlighted in red, and the second-best in blue. ](images/a8f578f36e64660d99b60683ed9e06fd18f8aafcbcdafb6cb1a8ff18fb18ec34.jpg)
+<table><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td rowspan="5"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td>0.241</td><td>0.232 0.317</td><td>0.204</td><td>0.308</td><td>0.170 0.271</td><td>0.187</td><td>0.304 0.167</td><td>0.252</td><td>0.168 0.272</td><td>0.197 0.282</td><td>0.145</td><td>0.247</td><td>0.193 0.308</td><td>0.169 0.273</td><td>0.274</td><td>0.368</td><td>0.201 0.307</td><td>0.503</td><td>0.421</td><td>1.568 0.942</td><td>1.588</td><td>0.946</td></tr><tr><td>192</td><td>0.161 0.253</td><td>0.232</td><td>0.321 0.218</td><td>0.329</td><td>0.182 0.281</td><td>0.199</td><td>0.315</td><td>0.175 0.261</td><td>0.184 0.289</td><td>0.196</td><td>0.285 0.180</td><td>0.283</td><td>0.201 0.315</td><td>0.182</td><td>0.286 0.296</td><td>0.386</td><td>0.222 0.334</td><td>0.760</td><td>0.531</td><td>1.567</td><td>0.945 1.595</td><td>0.950</td></tr><tr><td>336 Electricity</td><td>0.178 0.273</td><td>0.226</td><td>0.311 0.239</td><td>0.350</td><td>0.197 0.297</td><td>0.212</td><td>0.329 0.191</td><td>0.278</td><td>0.198 0.300</td><td>0.209</td><td>0.301 0.200</td><td>0.308</td><td>0.214 0.329</td><td>0.200</td><td>0.304 0.300</td><td>0.394</td><td>0.231 0.338</td><td>2.074</td><td>0.722</td><td>1.622 0.963</td><td>1.617</td><td>0.961</td></tr><tr><td rowspan="8"></td><td>720 0.208</td><td>0.301 0.260</td><td>0.333</td><td>0.271</td><td>0.373</td><td>0.228 0.324</td><td>0.233 0.345 0.208</td><td>0.231</td><td>0.312 0.220</td><td>0.320</td><td>0.245 0.333</td><td>0.266</td><td>0.362 0.246</td><td>0.355</td><td>0.222 0.321</td><td>0.373</td><td>0.439 0.254</td><td>0.361</td><td>7.711 0.968</td><td>1.655</td><td>0.981</td><td>1.647 0.975</td></tr><tr><td>Avg 0.174</td><td>0.267 0.238</td><td>0.321</td><td>0.233</td><td>0.340 0.194</td><td>0.293</td><td>0.323</td><td>0.191 0.276</td><td>0.192</td><td>0.295 0.212</td><td>0.300 0.198</td><td>0.300</td><td>0.214</td><td>0.327 0.193</td><td>0.296</td><td>0.311 0.397</td><td>0.227</td><td>0.338 2.762</td><td>0.661</td><td>1.603</td><td>0.958 1.612</td><td>0.958</td></tr><tr><td>96 0.394</td><td>0.274 0.731</td><td>0.464</td><td>0.528</td><td>0.359 0.559</td><td>0.379</td><td>0.607 0.392</td><td>0.446 0.283</td><td>0.593</td><td>0.321 0.650</td><td>0.396</td><td>0.398 0.282</td><td>0.587</td><td>0.366 0.612</td><td>0.338 0.719</td><td>0.391</td><td>0.613 0.388</td><td>1.402</td><td>0.709</td><td>2.813</td><td>1.081 2.723</td><td>1.079</td></tr><tr><td>192 0.422</td><td>0.281</td><td>0.714 0.458</td><td>0.563</td><td>0.382 0.571</td><td>0.382</td><td>0.621 0.399</td><td>0.453</td><td>0.286 0.617</td><td>0.336 0.598</td><td>0.370</td><td>0.409 0.293</td><td>0.604</td><td>0.373 0.613 0.383</td><td>0.340 0.696</td><td>0.379</td><td>0.616 0.382</td><td>2.814</td><td>0.876</td><td>2.841 1.087</td><td>2.756</td><td>1.087</td></tr><tr><td>336 720</td><td>0.434 0.286</td><td>0.749 0.468</td><td>0.579</td><td>0.393</td><td>0.581 0.385</td><td>0.622 0.396 0.396</td><td>0.468 0.501</td><td>0.292 0.629</td><td>0.336 0.605</td><td>0.373</td><td>0.449 0.318</td><td>0.621</td><td>0.618</td><td>0.328 0.777</td><td>0.420</td><td>0.622 0.337</td><td>4.369</td><td>1.077</td><td>2.943 1.108</td><td>2.791</td><td>1.095</td></tr><tr><td></td><td>0.469 0.305</td><td>0.811 0.484</td><td>0.623</td><td>0.421</td><td>0.613 0.401</td><td>0.632</td><td></td><td>0.310 0.640</td><td>0.350 0.645</td><td>0.394</td><td>0.589 0.391</td><td>0.626</td><td>0.382 0.653</td><td>0.355 0.864</td><td>0.472</td><td>0.660 0.408</td><td>7.985</td><td>1.486</td><td>2.915 1.101</td><td>2.811</td><td>1.097</td></tr><tr><td>24</td><td>Avg0.4300.287</td><td>0.751 0.469</td><td>0.573</td><td>0.389 0.581</td><td>0.387</td><td>0.621 2.527</td><td>0.3960.467</td><td>0.293 0.620</td><td>0.336 0.625</td><td>0.383</td><td>0.461 0.321</td><td>0.610</td><td>0.376 0.614</td><td>0.340</td><td>0.764 0.416</td><td>0.628</td><td>0.379 4.143</td><td>1.037</td><td>2.878</td><td>1.094 2.770</td><td>1.090</td></tr><tr><td rowspan="7">Illnes </td><td>1.215</td><td>0.728 5.797</td><td>1.804</td><td>3.219</td><td>1.233 1.787</td><td>0.847</td><td>1.020</td><td>1.921 0.855</td><td>2.317 0.934</td><td>2.398</td><td>1.040 1.879</td><td>0.886</td><td>3.228 1.260</td><td>2.294</td><td>0.945 5.764</td><td>1.677 3.483</td><td>1.287</td><td>1.939</td><td>0.981 2.614</td><td>1.154</td><td>6.587 1.701</td></tr><tr><td>36 1.382 48 1.411</td><td>0.743 5.116</td><td>1.638</td><td>3.677 1.287 3.991 1.364</td><td>1.762 2.118</td><td>0.837 0.917</td><td>2.615 1.007 0.359 0.972</td><td>1.994 0.883 2.026 0.872</td><td>1.972 0.920 2.238</td><td>2.646</td><td>1.088 2.210</td><td>1.018</td><td>2.679 1.080 2.622</td><td>1.825 0.848 2.010</td><td>4.755</td><td>1.467 3.103</td><td>1.148</td><td>5.801</td><td>1.685 7.435</td><td>1.941</td><td>7.130 1.884</td></tr><tr><td>60 1.726</td><td>0.767 4.200 0.835 4.324</td><td>1.458 1.494</td><td>4.592 1.496</td><td>2.027</td><td>0.906</td><td>1.016</td><td>1.744 0.849</td><td>0.940 2.027 0.928</td><td>2.614 1.086 2.804</td><td>2.440 2.547</td><td>1.088 1.057</td><td>1.078 1.157</td><td>0.900 2.178</td><td>4.763 1.469 5.264</td><td>2.669</td><td>1.085 4.549 1.125</td><td>1.434</td><td>5.784</td><td>1.659 6.575</td><td>1.798</td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td>2.487 2.497</td><td></td><td></td><td>1.146</td><td></td><td>2.857</td><td></td><td>0.963</td><td>1.564</td><td>2.770</td><td>3.759</td><td>1.129</td><td>4.678 1.401</td><td>5.893</td><td>1.677</td></tr><tr><td>Avg</td><td>1.4340.768 4.859</td><td>1.599</td><td>3.870 1.345</td><td>1.924</td><td>0.877</td><td>1.004</td><td>1.921 0.865</td><td>2.139 0.931</td><td>2.616 1.090</td><td>2.269</td><td>1.012 2.847</td><td>1.144</td><td>2.077 0.914</td><td>5.137 1.544</td><td>3.006</td><td>1.161 4.012</td><td>1.307</td><td>5.128</td><td>1.539 6.546</td><td>1.765</td></tr><tr><td>96 0.294</td><td>0.343 0.303</td><td>0.355</td><td>0.548 0.536</td><td>0.299</td><td>0.349 0.340</td><td>0.391</td><td>0.292 0.342</td><td>0.340 0.374 0.402</td><td>0.333 0.387 0.477</td><td>0.201</td><td>0.343 0.358</td><td>0.397</td><td>0.476 0.458</td><td>3.755 1.525</td><td>0.346</td><td>0.388 0.448</td><td>0.420</td><td>0.514</td><td>0.454 0.438</td><td>0.425</td></tr><tr><td rowspan="7">ETT</td><td>192 0.374</td><td>0.394 0.377 0.358</td><td>0.399 0.395</td><td>0.872 0.631 0.835 0.664</td><td>0.359 0.418</td><td>0.392 0.430 0.436 0.485</td><td>0.439 0.377 0.479 0.418</td><td>0.393 0.428</td><td>0.414 0.452</td><td>0.476 0.541</td><td>0.222 0.368 0.329</td><td>0.429 0.496</td><td>0.439 0.512 0.552</td><td>0.493 0.551</td><td>5.602 1.931 1.835</td><td>0.456 0.452</td><td>0.452</td><td>0.433</td><td>0.500 0.456</td><td>0.524</td><td>0.469</td></tr><tr><td>720 0.423</td><td>0.419 0.440 0.426</td><td>0.444</td><td>0.975 0.725</td><td>0.423</td><td>0.442</td><td>0.500 0.497</td><td>0.423 0.442</td><td>0.452 0.462 0.468</td><td>0.594 0.831 0.657</td><td>0.365</td><td>0.454 0.477</td><td>0.487 0.463 0.474</td><td>0.562 0.560</td><td>4.721 3.647</td><td>0.482 1.625 0.515</td><td>0.486 0.511</td><td>0.481 0.459 0.463 0.461</td><td>0.535 0.544</td><td>0.482 0.495</td><td>0.582 0.504 0.583 0.514</td></tr><tr><td>Avg0.374</td><td>0.399 0.366</td><td>0.398</td><td>0.808 0.639</td></table>
+
+**MSCformer’s long-term multivariate forecasting results (MASE). For the illness dataset, the look-back window size $W = 3 6$ , with prediction lengths $T \in \{ 2 4 , 3 6 , 4 8 , 6 0 \}$ ; for othe datasets, $W = 9 6 ,$ , with prediction lengths $T \in \{ 9 6 , 1 9 2 , 3 3 6 , 7 2 0 \}$ . The best results are highlighted in red. **
+![MSCformer’s long-term multivariate forecasting results (MASE). For the illness dataset, the look-back window size $W = 3 6$ , with prediction lengths $T \in \{ 2 4 , 3 6 , 4 8 , 6 0 \}$ ; for othe datasets, $W = 9 6 ,$ , with prediction lengths $T \in \{ 9 6 , 1 9 2 , 3 3 6 , 7 2 0 \}$ . The best results are highlighted in red. ](images/acc2313523fe702e5cca94c115767efa148666d055fc92252c7e646ff4048210.jpg)
+<table><tr><td rowspan="2">TYPE Model</td><td rowspan="2"></td><td colspan="2">Transformer</td><td colspan="3">MLP</td><td>CNN</td><td>RNN</td><td>Mathematical</td></tr><tr><td>Ours MASE</td><td>PatchTST MASE</td><td>TiDE MASE</td><td>TSMixer MASE</td><td>Dlinear MASE</td><td>Timesnet MASE</td><td>LSTM MASE</td><td>VAR MASE</td></tr><tr><td>Metric</td><td>96</td><td>0.255</td><td>0.266</td><td>0.335</td><td>0.326</td><td>0.298</td><td>0.288</td><td>0.462</td><td>0.445</td></tr><tr><td rowspan="5">Electricity</td><td>192</td><td>0.266</td><td>0.275</td><td>0.338</td><td>0.346</td><td>0.300</td><td>0.304</td><td>0.498</td><td>0.559</td></tr><tr><td>336</td><td>0.284</td><td>0.289</td><td>0.324</td><td>0.364</td><td>0.313</td><td>0.312</td><td>0.492</td><td>0.751</td></tr><tr><td>720</td><td>0.309</td><td>0.320</td><td>0.342</td><td>0.383</td><td>0.342</td><td>0.328</td><td>0.835</td><td>0.993</td></tr><tr><td>Avg</td><td>0.279</td><td>0.288</td><td>0.335</td><td>0.355</td><td>0.313</td><td>0.308</td><td>0.573</td><td>0.689</td></tr><tr><td>96</td><td>0.254</td><td>0.262</td><td>0.430</td><td>0.333</td><td>0.367</td><td>0.297</td><td>0.420</td><td>0.657</td></tr><tr><td rowspan="5">Traffic</td><td>192</td><td>0.259</td><td>0.263</td><td>0.421</td><td>0.351</td><td>0.340</td><td>0.309</td><td>0.417</td><td>0.806</td></tr><tr><td>336</td><td>0.261</td><td>0.267</td><td>0.427</td><td>0.359</td><td>0.341</td><td>0.307</td><td>0.416</td><td>0.984</td></tr><tr><td>720</td><td>0.278</td><td>0.283</td><td>0.441</td><td>0.384</td><td>0.359</td><td>0.319</td><td>0.734</td><td>1.355</td></tr><tr><td>Avg</td><td>0.263</td><td>0.269</td><td>0.430</td><td>0.357</td><td>0.352</td><td>0.308</td><td>0.497</td><td>0.952</td></tr><tr><td>24</td><td>0.428</td><td>0.503</td><td>1.061</td><td>0.725</td><td>0.611</td><td>0.549</td><td></td><td>0.577</td></tr><tr><td rowspan="5">Illness</td><td>36</td><td>0.394</td><td>0.469</td><td>0.869</td><td>0.683</td><td>0.577</td><td>0.488</td><td>1.019 0.979</td><td>0.894</td></tr><tr><td>48</td><td>0.427</td><td>0.485</td><td>0.811</td><td>0.759</td><td>0.604</td><td>0.523</td><td>1.033</td><td>0.798</td></tr><tr><td>60</td><td>0.498</td><td>0.506</td><td>0.891</td><td>0.892</td><td>0.683</td><td>0.553</td><td>1.120</td><td>0.673</td></tr><tr><td>Avg</td><td>0.435</td><td>0.490</td><td>0.906</td><td>0.762</td><td>0.618</td><td>0.527</td><td>1.036</td><td>0.741</td></tr><tr><td>96</td><td>0.807</td><td>0.805</td><td>0.835</td><td>1.261</td><td>0.911</td><td>0.880</td><td></td><td></td></tr><tr><td rowspan="5">ETT-h</td><td>192</td><td>0.840</td><td>0.838</td><td>0.851</td><td>1.345</td><td>1.015</td><td>0.883</td><td>3.007 2.951</td><td>0.988 0.923</td></tr><tr><td>336</td><td>0.831</td><td>0.849</td><td>0.784</td><td>1.317</td><td>1.073</td><td>0.897</td><td>2.754</td><td>0.911</td></tr><tr><td>720</td><td>0.856</td><td>0.860</td><td>0.864</td><td>1.411</td><td>1.278</td><td>0.911</td><td>2.640</td><td></td></tr><tr><td>Avg</td><td>0.835</td><td>0.839</td><td>0.833</td><td>1.337</td><td>1.077</td><td>0.893</td><td>2.828</td><td>0.897</td></tr><tr><td></td><td>0.850</td><td>0.862</td><td>1.031</td><td>0.992</td><td></td><td></td><td></td><td>0.927</td></tr><tr><td rowspan="5">Weather</td><td>96 192</td><td>0.884</td><td>0.884</td><td>0.980</td><td>0.997</td><td>1.004 1.014</td><td>0.866 0.894</td><td>1.598 1.490</td><td>1.839</td></tr><tr><td>336</td><td>0.879</td><td>0.879</td><td>0.906</td><td>0.950</td><td>1.050</td><td>0.905</td><td>1.343</td><td>1.723</td></tr><tr><td>720</td><td>0.888</td><td>0.878</td><td>0.893</td><td>0.931</td><td>0.967</td><td>0.911</td><td>1.320</td><td>1.556 1.363</td></tr><tr><td>Avg</td><td>0.877</td><td>0.876</td><td>0.944</td><td>0.963</td><td>0.992</td><td>0.898</td><td>1.420</td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>1.591</td></tr><tr><td rowspan="5">Exchange</td><td>96</td><td>1.036</td><td>1.046</td><td>1.107</td><td>1.964</td><td>1.112</td><td>1.194</td><td>5.352</td><td>2.903</td></tr><tr><td>192</td><td>1.048</td><td>1.024</td><td>1.121</td><td>1.775</td><td>1.090</td><td>1.190</td><td>4.080</td><td>2.740</td></tr><tr><td>336</td><td>1.030</td><td>1.063</td><td>1.088</td><td>1.452</td><td>1.078</td><td>1.131</td><td>3.109</td><td>2.588</td></tr><tr><td>720</td><td>0.999</td><td>1.010 1.031</td><td>1.028 1.070</td><td>1.031 1.392</td><td>1.021 1.060</td><td>1.095 1.134</td><td>2.095 3.128</td><td>1.981</td></tr><tr><td>Avg</td><td>1.020</td><td></td><td></td><td></td><td></td><td></td><td></td><td>2.391</td></tr><tr><td>Count</td><td></td><td>20</td><td>4</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></table>
+
+
+
+
+
+---
+
+==== 第 12 页 ====
+
+**Table 4 The ablation studies on Illness dataset. **
+![Table 4 The ablation studies on Illness dataset. ](images/2021e1eeb6a6bea3258a82c6fab4172620866d7ca4f6691587d6df69312d3c40.jpg)
+<table><tr><td colspan="2">Forecasting length</td><td colspan="2">24</td><td colspan="2">36</td><td colspan="2">48</td><td colspan="2">60</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">Illness</td><td>Origin</td><td>1.215</td><td>0.728</td><td>1.382</td><td>0.743</td><td>1.411</td><td>0.767</td><td>1.726</td><td>0.835</td></tr><tr><td>MSCformer-a</td><td>1.447</td><td>0.771</td><td>1.445</td><td>0.783</td><td>1.419</td><td>0.772</td><td>1.762</td><td>0.863</td></tr><tr><td>MSCformer-b</td><td>1.391</td><td>0.733</td><td>1.485</td><td>0.768</td><td>1.417</td><td>0.782</td><td>1.731</td><td>0.865</td></tr><tr><td>MSCformer-c</td><td>1.287</td><td>0.698</td><td>1.395</td><td>0.750</td><td>1.411</td><td>0.763</td><td>1.735</td><td>0.850</td></tr></table>
+
+**Table 5 The ablation studies on Electricity dataset. **
+![Table 5 The ablation studies on Electricity dataset. ](images/a9f3a7b12824619949c1dafac1a65dd65beed0e49dd9903f4554ca167e0f98ad.jpg)
+<table><tr><td colspan="2">Forecasting length</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">720</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">Electricity</td><td>Origin</td><td>0.147</td><td>0.241</td><td>0.161</td><td>0.253</td><td>0.178</td><td>0.273</td><td>0.208</td><td>0.301</td></tr><tr><td>MSCformer-a</td><td>0.290</td><td>0.382</td><td>0.298</td><td>0.387</td><td>0.305</td><td>0.393</td><td>0.336</td><td>0.411</td></tr><tr><td>MSCformer-b</td><td>0.148</td><td>0.241</td><td>0.163</td><td>0.254</td><td>0.175</td><td>0.269</td><td>0.211</td><td>0.302</td></tr><tr><td>MSCformer-c</td><td>0.167</td><td>0.253</td><td>0.175</td><td>0.261</td><td>0.191</td><td>0.278</td><td>0.231</td><td>0.312</td></tr></table>
+
+**Table 6 The ablation studies on ETT-h dataset. **
+![Table 6 The ablation studies on ETT-h dataset. ](images/3ec069593d37d846bbf261a9f29bacb069df1f4eb72e1205eb1b4e0a5d1a0deb.jpg)
+<table><tr><td colspan="2">Forecasting length</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">720</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">ETT-h</td><td>Origin</td><td>0.294</td><td>0.343</td><td>0.374</td><td>0.394</td><td>0.404</td><td>0.419</td><td>0.423</td><td>0.440</td></tr><tr><td>MsCformer-a</td><td>0.351</td><td>0.382</td><td>0.428</td><td>0.428</td><td>0.435</td><td>0.443</td><td>0.446</td><td>0.456</td></tr><tr><td>MSCformer-b</td><td>0.294</td><td>0.343</td><td>0.379</td><td>0.393</td><td>0.417</td><td>0.426</td><td>0.427</td><td>0.444</td></tr><tr><td>MSCformer-c</td><td>0.316</td><td>0.359</td><td>0.379</td><td>0.396</td><td>0.427</td><td>0.437</td><td>0.429</td><td>0.445</td></tr></table>
+
+**Table 7 The ablation studies on Weather dataset. **
+![Table 7 The ablation studies on Weather dataset. ](images/0d3b499563a11287146dbe7f71fc95941ecacb79c918717e1eeabfa31346629c.jpg)
+<table><tr><td colspan="2">Forecasting length</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">720</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">Weather</td><td>Origin</td><td>0.171</td><td>0.216</td><td>0.219</td><td>0.258</td><td>0.272</td><td>0.297</td><td>0.351</td><td>0.350</td></tr><tr><td>MSCformer-a</td><td>0.200</td><td>0.251</td><td>0.246</td><td>0.286</td><td>0.295</td><td>0.318</td><td>0.363</td><td>0.361</td></tr><tr><td>MSCformer-b</td><td>0.180</td><td>0.226</td><td>0.220</td><td>0.260</td><td>0.277</td><td>0.302</td><td>0.352</td><td>0.352</td></tr><tr><td>MSCformer-c</td><td>0.182</td><td>0.219</td><td>0.231</td><td>0.262</td><td>0.280</td><td>0.299</td><td>0.355</td><td>0.349</td></tr></table>
+
+
+
+Tables 4–7 show that MSCformer exhibits superior predictive performance compared to its sub-models, highlighting the importance of integrating cross-temporal, local dependency compensate, and crossdimensional dependencies. Ablation study results on the Electricity, ETT-h and Weather datasets, shown in Tables 5–7, demonstrate the significance of cross-temporal dependency extraction and crossdimensional dependency extraction modules. By removing these two modules, model performance is significantly reduced, suggesting that these modules enable the model to identify subtle correlations between data and enhance its ability to capture complex variable relationships in large-scale datasets effectively. Conversely, the ablation study on the Illness dataset Table 4 reveals the significant impact of the local dependency compensation module. The model’s performance notably declines after removing this module, indicating that capturing finegrained local time series features is crucial for prediction accuracy in small-scale datasets. This emphasizes MSCformer’s capability in capturing short-term dependencies within time series to improve prediction performance in smaller datasets. 
+
+In summary, MSCformer, through multi-faceted dependency extraction, achieves significant performance improvements in large-scale datasets while also demonstrating robust predictive capabilities in small-scale datasets. This research not only confirms the role of key modules in MSCformer for multivariate time series prediction but also further emphasizes the importance of considering various dependencies to enhance the accuracy of time series prediction. 
+
+# 4.6.2. Varying segment length 
+
+Additionally, the performance enhancement of the MSCformer model is attributed to its comprehensive utilization of information across multiple time scales. As demonstrated in Tables 8 and 9, experiments conducted on the ETT-h and Weather datasets with multi-scale time segmentation and under single time scale conditions reveal the model’s performance at different scales. The results indicate that under single time scale conditions, the model shows dataset-specific sensitivity to the choice of segment length. For example, in the ETTh dataset, the model exhibits superior predictive performance when the time series segment length is set to 8, while in the Weather dataset, optimal performance is achieved with a segment length of 4. However, compared to single-scale time segmentation, the MSCformer employing multi-scale time segmentation demonstrates more outstanding performance in both datasets. 
+
+These experimental results conclusively show that the choice of segment length under a single time scale impacts predictive performance. Nevertheless, by integrating information across multiple time scales, MSCformer more comprehensively captures the dynamic variations of time series, thereby effectively enhancing the overall forecasting accuracy of the model. This further confirms the importance and potential value of using multi-time scale information in multivariate time series forecasting to improve model performance. 
+
+# 4.6.3. Impact of normalization and denormalization 
+
+To validate the effectiveness of normalization and denormalization methods in handling non-stationary time series data, we visualized the forecasting of the MSCformer model on the Weather dataset with $W ~ = ~ \{ 9 6 \}$ and $T \ = \ \{ 9 6 \}$ , as shown in Fig. 8. Fig. 8(a) displays the forecasting results of the MSCformer model without normalization and denormalization, while Fig. 8(b) shows the results after applying these two processes. It can be observed that when dividing the Weather dataset (variable: OT) into training and test data at a specific time point, there is a significant issue of distribution shift, meaning the distributions of training and test data differ. Consequently, the model often mispredicts future values, as shown in Fig. 8(a), where the average value of the data continuously decreases and the model fails to keep up with changes in data trends, leading to forecasting offsets. However, as illustrated in Fig. 8(b), by applying normalization and denormalization methods, this distribution difference is mitigated and the accuracy of model forecasting is enhanced. 
+
+
+
+
+
+---
+
+==== 第 13 页 ====
+
+**Table 8 The results with different single segment lengths on ETT-h dataset. **
+![Table 8 The results with different single segment lengths on ETT-h dataset. ](images/3ff4bfe426d1e5cf1adfa9d01018bea0791677ea92672b7cdfb69cded8893d09.jpg)
+<table><tr><td colspan="2">Forecasting</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">720</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">ETT-h</td><td>Origin</td><td>0.294</td><td>0.343</td><td>0.374</td><td>0.394</td><td>0.404</td><td>0.419</td><td>0.423</td><td>0.440</td></tr><tr><td>Segment = 4</td><td>0.291</td><td>0.349</td><td>0.379</td><td>0.395</td><td>0.415</td><td>0.426</td><td>0.425</td><td>0.450</td></tr><tr><td>Segment = 8</td><td>0.298</td><td>0.347</td><td>0.375</td><td>0.394</td><td>0.408</td><td>0.423</td><td>0.427</td><td>0.449</td></tr><tr><td>Segment = 16</td><td>0.294</td><td>0.345</td><td>0.380</td><td>0.396</td><td>0.421</td><td>0.430</td><td>0.433</td><td>0.447</td></tr></table>
+
+**Table 9 The results with different single segment lengths on Weather dataset. **
+![Table 9 The results with different single segment lengths on Weather dataset. ](images/1f9f6f9b47680e75c9c557e6cf07407d8aa1e354ba789affe5c436706747b103.jpg)
+<table><tr><td colspan="2">Forecasting</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">720</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="4">Weather</td><td>Origin</td><td>0.171</td><td>0.216</td><td>0.219</td><td>0.258</td><td>0.272</td><td>0.297</td><td>0.351</td><td>0.350</td></tr><tr><td>Segment = 4</td><td>0.172</td><td>0.219</td><td>0.219</td><td>0.260</td><td>0.277</td><td>0.301</td><td>0.347</td><td>0.349</td></tr><tr><td>Segment = 8</td><td>0.173</td><td>0.217</td><td>0.219</td><td>0.261</td><td>0.274</td><td>0.295</td><td>0.348</td><td>0.349</td></tr><tr><td>Segment = 16</td><td>0.172</td><td>0.219</td><td>0.221</td><td>0.262</td><td>0.276</td><td>0.302</td><td>0.352</td><td>0.352</td></tr></table>
+
+**Fig. 8. The forecasting results on Weather dataset. **
+![Fig. 8. The forecasting results on Weather dataset. ](images/fff9cf2cbc8115cda96b3202aac56e9a708bf2e80bf709b5b8cc72b1e8b202c2.jpg)
+
+**Fig. 9. The impact of normalization and denormalization on the differences in training and test data distributions, analyzed based on the MSCformer model’s forecasting for the Weather dataset with a forecasting Length of 96. The figure shows the distribution of training and test data at each step of the training process, from left to right. **
+![Fig. 9. The impact of normalization and denormalization on the differences in training and test data distributions, analyzed based on the MSCformer model’s forecasting for the Weather dataset with a forecasting Length of 96. The figure shows the distribution of training and test data at each step of the training process, from left to right. ](images/e64c2baf3fbc4685b1db7a8b720ea376222508622b1f031e4228bec4095a4f12.jpg)
+
+
+
+Additionally, we further analyzed the data distribution of the Weather dataset during the experimental process, as shown in Fig. 9. We compared the data distributions of training and test data at each step of the sequence processing, presenting Fig. 9(a): The model’s original input. Fig. 9(b): The input after normalization. Fig. 9(c): The output distribution after denormalization. In Fig. 9(a), a disparity in the distributions of the original training and test data was observed. In Fig. 9(b), the normalization method transformed the data distribution into a mean-centered distribution, effectively alleviating the issue of distribution shift in the input data. Subsequently, in Fig. 9(c), the denormalization technique successfully returned the final output distribution to a state consistent with the original distribution shown in Fig. 9(a), ensuring consistency in the model’s input and output distributions. 
+
+
+
+# 4.7. Varying look-back window 
+
+In general, an effective time series prediction model should possess strong temporal relationship extraction capabilities. The size of the input length represents how much historical information the model can utilize. A model with the ability to model long-term temporal dependencies should perform better under a bigger look-back window (Zeng et al., 2023). To this end, we compared the predictive performance of MSCformer across various input lengths. 
+
+Specifically, we explored different input lengths on the ETT-h and Weather datasets. Tables 10 and 11 show the results. On the ETT-h dataset, the predictive performance of the model generally improves as forecast length increases. Weather dataset error results at input lengths of 192 and 336, however, show fluctuations. It is primarily due to the particularities of the weather dataset, where the accuracy of weather forecasts is greatly dependent on recent observational data, and a longer input window might introduce too much unnecessary information, causing local fluctuations. Overall, the MSCformer achieved better experimental results in longer look-back windows, demonstrating its effectiveness in extracting information from longer look-back windows. 
+
+
+
+
+
+---
+
+==== 第 14 页 ====
+
+**Table 10 The results with different input lengths on ETT-h dataset. **
+![Table 10 The results with different input lengths on ETT-h dataset. ](images/b6491084e136453b321f789af31df456e46c534433179f23e679ff92cd78e54e.jpg)
+<table><tr><td colspan="2">Input length</td><td colspan="2"></td><td colspan="2">48</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">420</td><td colspan="2">512</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="5">ETT-h</td><td>96</td><td>0.328</td><td>0.359</td><td>0.300</td><td>0.344</td><td>0.294</td><td>0.343</td><td>0.292</td><td>0.345</td><td>0.296</td><td>0.361</td><td>0.284</td><td>0.342</td><td>0.282</td><td>0.340</td></tr><tr><td>192</td><td>0.421</td><td>0.410</td><td>0.390</td><td>0.397</td><td>0.374</td><td>0.394</td><td>0.377</td><td>0.403</td><td>0.360</td><td>0.389</td><td>0.355</td><td>0.385</td><td>0.347</td><td>0.384</td></tr><tr><td>336</td><td>0.464</td><td>0.444</td><td>0.428</td><td>0.429</td><td>0.404</td><td>0.419</td><td>0.407</td><td>0.424</td><td>0.386</td><td>0.415</td><td>0.339</td><td>0.386</td><td>0.332</td><td>0.386</td></tr><tr><td>720</td><td>0.471</td><td>0.461</td><td>0.438</td><td>0.445</td><td>0.423</td><td>0.440</td><td>0.447</td><td>0.460</td><td>0.391</td><td>0.426</td><td>0.382</td><td>0.423</td><td>0.381</td><td>0.425</td></tr><tr><td>Avg</td><td>0.421</td><td>0.419</td><td>0.389</td><td>0.404</td><td>0.374</td><td>0.399</td><td>0.381</td><td>0.408</td><td>0.358</td><td>0.398</td><td>0.340</td><td>0.384</td><td>0.336</td><td>0.384</td></tr></table>
+
+**Table 11 The results with different input lengths on Weather dataset. **
+![Table 11 The results with different input lengths on Weather dataset. ](images/9c3ed6b603dafdc85454a9f0d228be794258879c46901212bc4704893b22a908.jpg)
+<table><tr><td colspan="2">Input length</td><td colspan="2">24</td><td colspan="2">48</td><td colspan="2">96</td><td colspan="2">192</td><td colspan="2">336</td><td colspan="2">420</td><td colspan="2">512</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="5">WTH</td><td>96</td><td>0.221</td><td>0.247</td><td>0.217</td><td>0.248</td><td>0.171</td><td>0.216</td><td>0.158</td><td>0.204</td><td>0.154</td><td>0.205</td><td>0.153</td><td>0.204</td><td>0.149</td><td>0.199</td></tr><tr><td>192</td><td>0.267</td><td>0.282</td><td>0.259</td><td>0.281</td><td>0.219</td><td>0.258</td><td>0.204</td><td>0.246</td><td>0.200</td><td>0.248</td><td>0.197</td><td>0.245</td><td>0.197</td><td>0.250</td></tr><tr><td>336</td><td>0.327</td><td>0.323</td><td>0.315</td><td>0.320</td><td>0.272</td><td>0.297</td><td>0.258</td><td>0.291</td><td>0.253</td><td>0.291</td><td>0.252</td><td>0.293</td><td>0.248</td><td>0.289</td></tr><tr><td>720</td><td>0.406</td><td>0.375</td><td>0.384</td><td>0.367</td><td>0.351</td><td>0.350</td><td>0.335</td><td>0.347</td><td>0.339</td><td>0.350</td><td>0.327</td><td>0.340</td><td>0.326</td><td>0.342</td></tr><tr><td>Avg</td><td>0.305</td><td>0.307</td><td>0.294</td><td>0.304</td><td>0.253</td><td>0.280</td><td>0.239</td><td>0.272</td><td>0.237</td><td>0.274</td><td>0.232</td><td>0.271</td><td>0.230</td><td>0.270</td></tr></table>
+
+**Table 12 The results with different random seed on Weather dataset. **
+![Table 12 The results with different random seed on Weather dataset. ](images/8cb4876b2986c81ab8e5dbfc0afa7fbc71a09a0714e43a5a6e8141795a5b1c69.jpg)
+<table><tr><td colspan="2">Random seed</td><td colspan="2">Random seed = 2019</td><td colspan="2">Random seed = 2020</td><td colspan="2">Random seed = 2021</td><td colspan="2">Random seed = 2022</td><td colspan="2">Random seed = 2023</td></tr><tr><td colspan="2">Metric</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="5">Weather</td><td>96</td><td>0.171</td><td>0.217</td><td>0.170</td><td>0.215</td><td>0.171</td><td>0.216</td><td>0.169</td><td>0.215</td><td>0.172</td><td>0.217</td></tr><tr><td>192</td><td>0.217</td><td>0.259</td><td>0.235</td><td>0.267</td><td>0.219</td><td>0.258</td><td>0.221</td><td>0.262</td><td>0.219</td><td>0.261</td></tr><tr><td>336</td><td>0.274</td><td>0.300</td><td>0.294</td><td>0.310</td><td>0.272</td><td>0.297</td><td>0.277</td><td>0.302</td><td>0.277</td><td>0.303</td></tr><tr><td>720</td><td>0.350</td><td>0.350</td><td>0.374</td><td>0.368</td><td>0.351</td><td>0.350</td><td>0.373</td><td>0.367</td><td>0.352</td><td>0.352</td></tr><tr><td>Avg</td><td>0.253</td><td>0.282</td><td>0.268</td><td>0.290</td><td>0.253</td><td>0.280</td><td>0.260</td><td>0.287</td><td>0.255</td><td>0.283</td></tr></table>
+
+**Fig. 10. MAE scores under different model parameters, with each line representing an MAE score for a parameter combination. The combinations $( \mathrm { L } , \mathrm { D } ) = ( 3 , 1 2 8 )$ , (3, 256), (4, 128), (4, 256), (5, 128), (5, 256) are labeled from 1 to 6 in the figure in sequence. **
+![Fig. 10. MAE scores under different model parameters, with each line representing an MAE score for a parameter combination. The combinations $( \mathrm { L } , \mathrm { D } ) = ( 3 , 1 2 8 )$ , (3, 256), (4, 128), (4, 256), (5, 128), (5, 256) are labeled from 1 to 6 in the figure in sequence. ](images/c2eec9be6403e8d225f0d411b8b0030366d6766c9c9de02284bcc7d7ce4c1ede.jpg)
+
+
+
+# 4.8. Hyperparameter analysis 
+
+# 4.8.1. Random seed 
+
+The final results reported by the model were run with a fixed random seed RandomSeed $= 2 0 2 1$ . To test the robustness of the results, we trained the MSCformer model with 5 different RandomSeed $=$ {2019, 2020, 2021, 2022, 2023} and calculated the MSE and MAE scores for each random seed. The predictive results for the Weather dataset under different random seeds, as shown in Table 12, demonstrate the robustness of our model to the choice of random seed. 
+
+# 4.8.2. Model hyperparameter 
+
+To understand whether MSCformer is sensitive to choices in deep learning settings, we experimented with different model parameters. We varied the number of model training layers $L \ = \ \{ 3 , 4 , 5 \}$ , chose model dimensions $D \ = \ \{ 1 2 8 , 2 5 6 \}$ , and set the hidden dimension of the feedforward network to $F = 2 D$ , resulting in 6 different sets of model hyperparameters. Fig. 10 shows these combinations’ MAE scores at different prediction lengths $\begin{array} { r c l } { T } & { = } & { \{ 9 6 , 1 9 2 , 3 3 6 , 7 2 0 \} } \end{array}$ on the ETTh dataset, indicating the dataset’s robustness to the choice of model hyperparameters. 
+
+
+
+# 4.9. Impact of different aggregation methods 
+
+In exploring the impact of aggregation strategies at different time scales, four main aggregation methods were employed: equal weight aggregation, exponential decay weight aggregation, learnable weight aggregation, and weighted average aggregation. The experimental results are shown in Table 13. 
+
+As compared with other methods, exponential decay aggregation demonstrated superior predictive capabilities. The reasons analyzed include: unlike equal weight aggregation, the exponential decay method assigns differentiated weights to data segments across different time scales, enabling the model to enhance information extraction and utilization within key time periods while maintaining an overall understanding of the data, thus improving prediction accuracy and model sensitivity; compared to methods that require training to learn optimal weights, exponential decay aggregation uses a predefined, fixed weight reduction strategy that simplifies the training process and enhances the model’s generalization ability on unseen data; in contrast to weighted average aggregation, which assigns weights based on segment length, exponential decay aggregation allocates heavier weights to lower scales with shorter segment lengths and more segments, enhancing the model’s sensitivity to key changes and subtle trends in time series segments. Therefore, given the clear advantages of exponential decay aggregation in predictive performance, this method was chosen for the final experimental setup of the model, thereby ensuring the accuracy of the predictions. 
+
+
+
+
+
+---
+
+==== 第 15 页 ====
+
+**Table 13 Performance of different aggregation methods. **
+![Table 13 Performance of different aggregation methods. ](images/9c2ef46d5d7a3a5ba7173bddff36474f528d630cc2273dbe00872a8036ebc8d5.jpg)
+<table><tr><td rowspan="2">Dataset</td><td rowspan="2">Metric</td><td colspan="2">Average</td><td colspan="2">Exponential reduced</td><td colspan="2">Learnable</td><td colspan="2">Weighted average</td></tr><tr><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td><td>MSE</td><td>MAE</td></tr><tr><td rowspan="5">Electricity</td><td>96</td><td>0.147</td><td>0.241</td><td>0.147</td><td>0.241</td><td>0.147</td><td>0.241</td><td>0.148</td><td>0.241</td></tr><tr><td>192</td><td>0.161</td><td>0.254</td><td>0.161</td><td>0.253</td><td>0.162</td><td>0.254</td><td>0.162</td><td>0.254</td></tr><tr><td>336</td><td>0.179</td><td>0.272</td><td>0.178</td><td>0.273</td><td>0.179</td><td>0.272</td><td>0.180</td><td>0.273</td></tr><tr><td>720</td><td>0.213</td><td>0.305</td><td>0.208</td><td>0.301</td><td>0.223</td><td>0.311</td><td>0.222</td><td>0.310</td></tr><tr><td>Avg</td><td>0.175</td><td>0.268</td><td>0.174</td><td>0.267</td><td>0.178</td><td>0.270</td><td>0.178</td><td>0.270</td></tr><tr><td rowspan="5">ETT-h</td><td>96</td><td>0.296</td><td>0.345</td><td>0.294</td><td>0.343</td><td>0.295</td><td>0.344</td><td>0.297</td><td>0.346</td></tr><tr><td>192</td><td>0.375</td><td>0.395</td><td>0.374</td><td>0.394</td><td>0.375</td><td>0.392</td><td>0.377</td><td>0.393</td></tr><tr><td>336</td><td>0.407</td><td>0.421</td><td>0.404</td><td>0.419</td><td>0.390</td><td>0.411</td><td>0.392</td><td>0.419</td></tr><tr><td>720</td><td>0.426</td><td>0.442</td><td>0.423</td><td>0.440</td><td>0.428</td><td>0.441</td><td>0.430</td><td>0.442</td></tr><tr><td>Avg</td><td>0.376</td><td>0.401</td><td>0.374</td><td>0.399</td><td>0.372</td><td>0.397</td><td>0.374</td><td>0.400</td></tr><tr><td rowspan="5">Weather</td><td>96</td><td>0.173</td><td>0.220</td><td>0.171</td><td>0.216</td><td>0.171</td><td>0.218</td><td>0.173</td><td>0.218</td></tr><tr><td>192</td><td>0.219</td><td>0.259</td><td>0.219</td><td>0.258</td><td>0.219</td><td>0.261</td><td>0.219</td><td>0.261</td></tr><tr><td>336</td><td>0.277</td><td>0.302</td><td>0.272</td><td>0.297</td><td>0.275</td><td>0.300</td><td>0.277</td><td>0.301</td></tr><tr><td>720</td><td>0.351</td><td>0.349</td><td>0.351</td><td>0.350</td><td>0.353</td><td>0.350</td><td>0.353</td><td>0.352</td></tr><tr><td>Avg</td><td>0.255</td><td>0.283</td><td>0.253</td><td>0.280</td><td>0.255</td><td>0.282</td><td>0.256</td><td>0.283</td></tr></table>
+
+**Fig. 11. The impact of different noise scales on prediction performance. **
+![Fig. 11. The impact of different noise scales on prediction performance. ](images/d75988fddbf47a033d3400567c737835144c0fbe9c4dab541b8f077e8a4b8a31.jpg)
+
+
+
+# 4.10. Impact of adding noise information 
+
+To validate the performance of MSCformer under various noise input levels, we introduced noise of different scales into the original input data and studied its impact on predictive performance. Specifically, we added Gaussian noise at levels of 0.1, 0.2 and 0.4 to the input data, which can be represented as follows: 
+
+
+where $X _ { i n p u t }$ represents the initial input data, $\alpha$ is the noise level coefficient and $\mu \sim N ( 0 , 1 )$ is a random variable following a normal distribution. Observing the experimental results Fig. 11, the MSCformer model demonstrates robustness to small-scale noise across different datasets. Under noise levels of 0.1, 0.2 and 0.4, the decline in MSCformer’s predictive performance is gradual. Particularly at a noise level of 0.1, there is almost no noticeable impact on predictive performance. Even when the noise is increased to 0.4, MSCformer’s predictive performance remains at an acceptable level. Based on these experimental results, we conclude that MSCformer can effectively utilize multi-scale information and accurately capture cross-temporal and cross-variable dependencies in multivariate long-term time series. Especially when facing small-scale noise (such as noise levels of 0.1, 0.2, 0.4), MSCformer exhibits robustness and maintains its ability to accurately model multivariate long-term time series. 
+
+
+
+# 4.11. Efficiency analysis 
+
+To evaluate the efficiency of our model, we compared MSCformer with other models in terms of parameter count, memory usage and average inference speed. For fairness, the experiments were conducted on the same condition with a look-back window $W = 9 6$ and forecast length $T = 9 6$ on the ETT-h dataset. 
+
+
+
+
+
+---
+
+==== 第 16 页 ====
+
+**Fig. 12. The parameter count, memory usage and inference speed of different models. **
+![Fig. 12. The parameter count, memory usage and inference speed of different models. ](images/9e8ccba4a4ebf7dc98c774e61a7b1c55327d819377e78c0bf8dd98444d3a4248.jpg)
+
+
+
+Fig. 12 illustrates the comparison between the MSCformer model with other models in terms of parameter count, memory usage, and inference speed. The results indicate that MSCformer has a significant advantage in parameter count and memory usage. While MSCformer does not have the traditional encoder–decoder structure of the Transformer and retains only the attention mechanism as its primary modeling approach, it still demonstrates significant performance advantages with a smaller parameter count. Specifically, MSCformer’s memory consumption and parameter count are only $2 / 5$ and 1/5 of those of the Autoformer’s respectively, and its inference speed is about $2 4 . 5 \%$ faster. Despite MSCformer’s moderate inference speed, this is primarily due to the need to integrate complex multi-scale and multi-dependency relationships during inference, however, with similar inference speeds, MSCformer still achieves optimal prediction results, demonstrating its effectiveness. 
+
+# 4.12. Statistical testing 
+
+To strengthen the persuasiveness of the model’s experimental results, additional statistical tests were conducted. A total of 16 benchmark models were retrained using the Weather and ETT-h datasets, and multiple experiment results were collected for each model. Using these data, a one-way ANOVA was performed on the average MSE for different forecast lengths, revealing statistically significant differences between the models in MSE errors. Afterwards, the Dunnett test was used for multiple comparisons (Multiple Comparison with the Baselines — MCB), which was designed specifically to compare the performance differences between one baseline group (MSCformer) and multiple comparison groups. 
+
+The Dunnett test calculated the t-statistic and adjusted p-values for each group. The t-statistic measures the magnitude of the difference between two groups, Positive values indicate that MSCformer performs better than the comparison models, and negative values indicates the opposite. The $p$ -value reflects the probability of observing the current or more extreme differences under the assumption that there are no differences between the groups. Lower p-values (adjusted by the Benjamini–Hochberg method) indicate statistically significant differences between the groups. If the adjusted $p$ -value is less than the set significance level $( \alpha = 0 . 0 5 )$ ), there are significant differences between the groups; if it is greater, there are no significant differences. 
+
+To visualize the results of the Dunnett test, Fig. 13 was drawn. According to the figures, the pink area represents areas in which our model significantly outperforms the comparison models, and the light blue area represents areas where our model performs worse, both with statistically significant differences. In the area to the right of the dashed line, there are no significant differences between the models. These results show that in most cases, MSCformer’s performance is superior to the existing benchmark models, and there are significant differences between them. These statistical analysis results not only highlight the advantages of the MSCformer model, but also strengthen the rigor and credibility of the research findings. 
+
+
+
+# 4.13. Conformal predictions 
+
+In order to enhance the practicality of the MSCformer model and expand its application scenarios, this study has also introduced an interval forecasting technique that uses simple conformal prediction techniques to extend point predictions to interval predictions., without changing the original architecture of the model. The method has been applied to a 96-step forecasting task on the Electricity dataset. 
+
+Based on the predetermined confidence levels, during the testing phase, the conformal prediction method is used to generate prediction intervals for the data in the test set, thereby providing confidence intervals that cover forecast uncertainty. 
+
+This experiment selected three different confidence levels: $\alpha = 0 . 5$ , $\alpha \ = \ 0 . 9$ and $\alpha ~ = ~ 0 . 9 5$ . Confidence levels correspond to the range of coverage of the model’s prediction uncertainty, where lower confidence levels correspond to narrower prediction intervals, and higher confidence levels correspond to broader coverage ranges. With this approach, MSCformer not only provides precise point predictions, but also reveals the uncertainty of the forecasts through the confidence intervals, thus enhancing the model’s reliability, confidence intervals enable decision-makers to conduct more cautious risk assessments and make decisions based on the uncertainty of the predictions. 
+
+Fig. 14 shows the point predictions for the ‘OT’ variable column in the Electricity dataset, along with their corresponding interval results. The $5 0 \%$ confidence intervals have covered most of the actual values, and all actual observations are within the $9 5 \%$ confidence interval. This enriches the practicality of the MSCformer model. 
+
+# 5. Conclusion 
+
+In this paper, we introduce MSCformer, a novel model for multivariate long-term time series forecasting. MSCformer effectively overcomes the challenges of computational efficiency, local context awareness, and cross-dimensional dependency recognition encountered by standard Transformer models in handling complex time series. A multi-scale temporal segmentation module, a cross-temporal global dependency extraction network, a local dependency compensation network, and a cross-dimensional global dependency extraction network are integrated in MSCformer, which reduces computational complexity while capturing local characteristics and changing patterns in time series more accurately. It offers a new perspective on capturing deep dependencies within time series. Furthermore, MSCformer fully integrates global and local dependencies across time, as well as global dependencies across dimensions, enabling it to fully comprehend and express the complex dynamics of time series. As a result of this comprehensive feature representation strategy, MSCformer has significantly improved performance on several widely available multivariate time series forecasting datasets. 
+
+Innovations introduced in this research focus primarily on optimizing the feature representation of multivariate time series through key modules in the model architecture. As we explore multivariate time series further, we will employ more interpretable methods to model the complex relationships among variables. We also aim to enhance the model’s memory efficiency, especially when dealing with long sequences and a large number of variables, so that it can be widely deployed and applied in more practical settings. 
+
+
+
+
+
+---
+
+==== 第 17 页 ====
+
+**Fig. 13. The Dunnet result. **
+![Fig. 13. The Dunnet result. ](images/9430b3e2a07de8c61bbbc61be1467c076f9270c012bec3825010e0db05335356.jpg)
+
+**Fig. 14. The result of interval forecasts on Electricity dataset. **
+![Fig. 14. The result of interval forecasts on Electricity dataset. ](images/0d4cca6a12c41ec49804f870df552da581e1691d37c03fd8ab55f93c79460218.jpg)
+
+# CRediT authorship contribution statement 
+
+Ao Li: Writing – original draft. Ying Li: Visualization. Yunyang Xu: Validation, Software. Xuemei Li: Writing – review & editing, Methodology, Funding acquisition. Caiming Zhang: Investigation, Conceptualization. 
+
+# Declaration of competing interest 
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper. 
+
+# Data availability 
+
+Data will be made available on request. 
+
+# Acknowledgments 
+
+Supported by the National Natural Science Foundation of China (NSFC) Joint Fund with Zhejiang Integration of Informatization and Industrialization, China under Key Project (Grant No. U22A2033) and NSFC, China (Grant No. 62072281). 
+
+# References 
+
+Box George, E., Jenkins Gwilym, M., Reinsel Gregory, C., & Ljung Greta, M. (1976). Time series analysis: forecasting and control. San Francisco: Holden Bay.   
+Chen, S. A., Li, C. L., Yoder, N., Arik, S. O., & Pfister, T. (2023). Tsmixer: An all-mlp architecture for time series forecasting. arXiv preprint arXiv:2303.06053.   
+Chen, M., Peng, H., Fu, J., & Ling, H. (2021). Autoformer: Searching transformers for visual recognition. In Proceedings of the IEEE/CVF international conference on computer vision (pp. 12270–12280).   
+Cryer, J. D. (1986). Vol. 286, Time series analysis. Duxbury Press Boston.   
+Das, A., Kong, W., Leach, A., Mathur, S., Sen, R., & Yu, R. (2023). Long-term forecasting with tide: Time-series dense encoder. arXiv preprint arXiv:2304.08424.   
+Deihim, A., Alonso, E., & Apostolopoulou, D. (2023). Sttre: A spatio-temporal transformer with relative embeddings for multivariate time series forecasting. Available at SSRN 4404879.   
+Dey, R., & Salem, F. M. (2017). Gate-variants of gated recurrent unit (gru) neural networks. In 2017 IEEE 60th international midwest symposium on circuits and systems MWSCAS, (pp. 1597–1600). IEEE.   
+Elman, J. L. (1990). Finding structure in time. Cognitive Science, 14, 179–211.   
+Hewage, P., Behera, A., Trovati, M., Pereira, E., Ghahremani, M., Palmieri, F., & Liu, Y. (2020). Temporal convolutional neural (tcn) network for an effective weather forecasting using time-series data from the local weather station. Soft Computing, 24, 16453–16482.   
+Kim, T., Kim, J., Tae, Y., Park, C., Choi, J. H., & Choo, J. (2021). Reversible instance normalization for accurate time-series forecasting against distribution shift. In International conference on learning representations.   
+Lai, G., Chang, W. C., Yang, Y., & Liu, H. (2018). Modeling long-and short-term temporal patterns with deep neural networks. In The 41st international ACM SIGIR conference on research & development in information retrieval (pp. 95–104).   
+Li, L., Su, X., Zhang, Y., Lin, Y., & Li, Z. (2015). Trend modeling for traffic time series analysis: An integrated study. IEEE Transactions on Intelligent Transportation Systems, 16, 3430–3439.   
+Liu, Y., Wu, H., Wang, J., & Long, M. (2022). Non-stationary transformers: Exploring the stationarity in time series forecasting. Advances in Neural Information Processing Systems, 35, 9881–9893.   
+Liu, S., Yu, H., Liao, C., Li, J., Lin, W., Liu, A. X., & Dustdar, S. (2021). Pyraformer: Lowcomplexity pyramidal attention for long-range time series modeling and forecasting. In International conference on learning representations.   
+Liu, M., Zeng, A., Chen, M., Xu, Z., Lai, Q., Ma, L., & Xu, Q. (2022). Scinet: Time series modeling and forecasting with sample convolution and interaction. Advances in Neural Information Processing Systems, 35, 5816–5828.   
+Ma, X., Li, X., Fang, L., Zhao, T., & Zhang, C. (2024). U-mixer: An unet-mixer architecture with stationarity correction for time series forecasting. arXiv preprint arXiv:2401.02236.   
+Matsubara, Y., Sakurai, Y., Van Panhuis, W. G., & Faloutsos, C. (2014). Funnel: automatic mining of spatially coevolving epidemics. In Proceedings of the 20th ACM SIGKDD international conference on knowledge discovery and data mining (pp. 105–114).   
+Meese, R. A., & Rogoff, K. (1983). Empirical exchange rate models of the seventies: Do they fit out of sample? Journal of International Economics, 14, 3–24.   
+Moosa, I., & Burns, K. (2014). A reappraisal of the meese–rogoff puzzle. Applied Economics, 46, 30–40.   
+Nie, Y., Nguyen, N. H., Sinthong, P., & Kalagnanam, J. (2022). A time series is worth 64 words: Long-term forecasting with transformers. arXiv preprint arXiv:2211.14730.   
+Oreshkin, B. N., Carpov, D., Chapados, N., & Bengio, Y. (2019). N-beats: Neural basis expansion analysis for interpretable time series forecasting. arXiv preprint arXiv:1905.10437.   
+Pang, Y., Zhou, X., Zhang, J., Sun, Q., & Zheng, J. (2022). Hierarchical electricity time series prediction with cluster analysis and sparse penalty. Pattern Recognition, 126, Article 108555.   
+Qin, Y., Song, D., Chen, H., Cheng, W., Jiang, G., & Cottrell, G. (2017). A dual-stage attention-based recurrent neural network for time series prediction. arXiv preprint arXiv:1704.02971.   
+Salinas, D., Flunkert, V., Gasthaus, J., & Januschowski, T. (2020). Deepar: Probabilistic forecasting with autoregressive recurrent networks. International Journal of Forecasting, 36, 1181–1191.   
+Semenoglou, A. A., Spiliotis, E., & Assimakopoulos, V. (2023). Image-based time series forecasting: A deep convolutional neural network approach. Neural Networks, 157, 39–53.   
+Sen, R., Yu, H. F., & Dhillon, I. S. (2019). Think globally, act locally: A deep neural network approach to high-dimensional time series forecasting. Advances in Neural Information Processing Systems, 32.   
+Shen, L., Wei, Y., & Wang, Y. (2023). Gbt: Two-stage transformer framework for non-stationary time series forecasting. Neural Networks, 165, 953–970.   
+Song, G., Zhao, T., Wang, S., Wang, H., & Li, X. (2023). Stock ranking prediction using a graph aggregation network based on stock price and stock relationship information. Information Sciences, Article 119236.   
+Sutskever, I., Vinyals, O., & Le, Q. V. (2014). Sequence to sequence learning with neural networks. Advances in Neural Information Processing Systems, 27.   
+Tian, G., Zhang, C., Shi, Y., & Li, X. (2024). Multiwavenet: A long time series forecasting framework based on multi-scale analysis and multi-channel feature fusion. Expert Systems with Applications, 251, Article 124088.   
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. Advances in Neural Information Processing Systems, 30.   
+Walker, G. T. (1931). On periodicity in series of related terms. Proceedings of the Royal Society of London. Series A, Containing Papers of a Mathematical and Physical Character, 131, 518–532.   
+Wang, H., Peng, J., Huang, F., Wang, J., Chen, J., & Xiao, Y. (2022). Micn: Multi-scale local and global context modeling for long-term series forecasting. In The eleventh international conference on learning representations.   
+Woo, G., Liu, C., Sahoo, D., Kumar, A., & Hoi, S. (2022). Etsformer: Exponential smoothing transformers for time-series forecasting. arXiv preprint arXiv:2202. 01381.   
+Wu, H., Hu, T., Liu, Y., Zhou, H., Wang, J., & Long, M. (2022). Timesnet: Temporal 2d-variation modeling for general time series analysis. arXiv preprint arXiv:2210. 02186.   
+Xiao, Y., Liu, Z., Yin, H., Wang, X., & Zhang, Y. (2024). Stformer: A dual-stage transformer model utilizing spatio-temporal graph embedding for multivariate time series forecasting. Journal of Intelligent & Fuzzy Systems, 1–17.   
+Yule, G. U. (1927). Vii. on a method of investigating periodicities disturbed series, with special reference to wolfer’s sunspot numbers. Philosophical Transactions of the Royal Society of London. Series A, Containing Papers of a Mathematical or Physical Character, 226, 267–298.   
+Zeng, A., Chen, M., Zhang, L., & Xu, Q. (2023). Are transformers effective for time series forecasting? In Proceedings of the AAAI conference on artificial intelligence (pp. 11121–11128).   
+Zhang, C., Wang, X., Zhang, H., Zhang, H., & Han, P. (2021). Log sequence anomaly detection based on local information extraction and globally sparse transformer model. IEEE Transactions on Network and Service Management, 18, 4119–4133.   
+Zhang, Y., & Yan, J. (2023). Crossformer: Transformer utilizing cross-dimension dependency for multivariate time series forecasting. In The eleventh international conference on learning representations.   
+Zhang, T., Zhang, Y., Cao, W., Bian, J., Yi, X., Zheng, S., & Li, J. (2022). Less is more: Fast multivariate time series forecasting with light sampling-oriented mlp structures. arXiv preprint arXiv:2207.01186.   
+Zhao, T., Ma, X., Li, X., & Zhang, C. (2023). Mpr-net: Multi-scale pattern reproduction guided universality time series interpretable forecasting. arXiv preprint arXiv: 2307.06736.   
+Zhou, T., Ma, Z., Wen, Q., Wang, X., Sun, L., & Jin, R. (2022). Fedformer: Frequency enhanced decomposed transformer for long-term series forecasting. In International conference on machine learning (pp. 27268–27286). PMLR.   
+Zhou, H., Zhang, S., Peng, J., Zhang, S., Li, J., Xiong, H., & Zhang, W. (2021). Informer: Beyond efficient transformer for long sequence time-series forecasting. In Proceedings of the AAAI conference on artificial intelligence (pp. 11106–11115). 
+
+
+
+
+
+
+
+---
+
+==== 第 18 页 ====
+
+
+
+
+
+
+
+
+
+---
+

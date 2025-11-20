@@ -1,0 +1,245 @@
+openapi: 3.1.0
+info:
+  title: TrustRAG Studio API
+  version: 1.0.0
+  description: |
+    TrustRAG Studio 后端接口文档（FastAPI）。
+    包含两个主要模块：
+    1. **Corpus (知识库)**: 文件上传、管理、切片配置与向量索引构建。
+    2. **Chat (对话)**: 支持 RAG/纯 LLM 模式、模型选择、Web 搜索及可解释性（Query Rewrite/Claim Check）的流式对话。
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local environment
+
+tags:
+  - name: System
+  - name: KnowledgeBase
+  - name: Chat
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: healthCheck
+      summary: 系统健康检查
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "ok" }
+
+  # ============================
+  # Knowledge / Corpus 模块 (对应图1)
+  # ============================
+  /knowledge/files:
+    get:
+      tags: [KnowledgeBase]
+      operationId: listFiles
+      summary: 获取当前知识库文件列表
+      description: 对应图1右侧 "Current Documents" 表格数据。
+      parameters:
+        - in: query
+          name: knowledge_name
+          schema: { type: string, default: "default_index" }
+          description: 知识库名称
+      responses:
+        "200":
+          description: 文件列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+
+  /knowledge/upload:
+    post:
+      tags: [KnowledgeBase]
+      operationId: uploadFile
+      summary: 上传文件至知识库
+      description: 对应图1右下角 "Upload a knowledge file"。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                knowledge_name:
+                  type: string
+                  default: "default_index"
+      responses:
+        "200":
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploaded"
+
+  /knowledge/build_index:
+    post:
+      tags: [KnowledgeBase]
+      operationId: buildIndex
+      summary: 触发分块与索引构建
+      description: |
+        对应图1左侧侧边栏配置。
+        根据 Chunk Size, Overlap 等参数对文件进行处理并存入向量库。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                knowledge_name:
+                  type: string
+                  default: "default_index"
+                chunk_size:
+                  type: integer
+                  default: 128
+                  description: 对应界面 "Chunk Size"
+                chunk_overlap:
+                  type: integer
+                  default: 0
+                  description: 对应界面 "Chunk Overlap"
+                use_contextual:
+                  type: boolean
+                  default: true
+                  description: 对应界面 "Process with Contextual Decontextualization"
+      responses:
+        "200":
+          description: 索引任务已提交
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id: { type: string }
+                  status: { type: string, example: "indexing" }
+
+  # ============================
+  # Chat 模块 (对应图2)
+  # ============================
+  /chat/completions:
+    post:
+      tags: [Chat]
+      operationId: chatStream
+      summary: 发送对话 (SSE流式)
+      description: |
+        对应图2 核心对话功能。
+        **事件流 (Event Stream) 类型**:
+        - `reformulate`: 返回重写后的查询 (对应右侧 Query Reformulate)
+        - `citation`: 返回引用片段信息 (对应右侧 Claim Attribute / 正文引用角标)
+        - `token`: LLM 生成的文本流
+        - `done`: 结束信号，包含最终分数等元数据
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: SSE 事件流
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: reformulate
+                  data: {"queries": ["伊朗 总统 事件 总结", "伊朗 政治 变动"]}
+
+                  event: citation
+                  data: {"id": 1, "filename": "伊朗总统坠机.txt", "content": "..."}
+
+                  event: token
+                  data: {"text": "伊"}
+
+                  event: token
+                  data: {"text": "朗"}
+
+  /chat/clear:
+    post:
+      tags: [Chat]
+      operationId: clearHistory
+      summary: 清空会话
+      description: 对应图2 "Clear" 按钮。
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id: { type: string }
+      responses:
+        "200":
+          description: 已清空
+
+components:
+  schemas:
+    # --- Corpus Models ---
+    FileMeta:
+      type: object
+      properties:
+        filename: { type: string, example: "伊朗.txt" }
+        size_kb: { type: number, example: 9.19 }
+        create_time: { type: string, example: "2025-01-18 22:17:06" }
+        file_type: { type: string, example: ".txt" }
+
+    FileListResponse:
+      type: object
+      properties:
+        total: { type: integer }
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileMeta"
+
+    FileUploaded:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        filename: { type: string }
+        file_id: { type: string }
+
+    # --- Chat Models ---
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: 用户输入的问题
+          example: "请总结伊朗总统事件"
+        
+        # 对应图2 左侧 Sidebar 配置
+        embedding_model:
+          type: string
+          default: "text-embedding-3-large"
+        llm_model:
+          type: string
+          default: "GPT-4O-ALL"
+        top_k:
+          type: integer
+          default: 5
+          description: Retrieve Top-k Documents
+        use_web_search:
+          type: boolean
+          default: false
+          description: Web Search 开关
+        chat_mode:
+          type: string
+          enum: ["only_llm", "rag"]
+          default: "rag"
+        knowledge_name:
+          type: string
+          default: "default_index"
+        
+        session_id:
+          type: string
+          description: 会话ID，用于维持多轮对话上下文

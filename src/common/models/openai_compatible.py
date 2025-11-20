@@ -29,6 +29,11 @@ def create_openai_compatible_model(
 			base_url = os.getenv("DASHSCOPE_BASE_URL")
 		if api_key is None:
 			api_key = os.getenv("DASHSCOPE_API_KEY")
+	elif provider_name == "openai_silicon":
+		if base_url is None:
+			base_url = os.getenv("SILICONFLOW_BASE_URL")
+		if api_key is None:
+			api_key = os.getenv("SILICONFLOW_API_KEY")
 	else:
 		raise ValueError(f"不支持的模型提供者：{provider_name}")
 	# 创建配置字典
